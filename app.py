@@ -19,24 +19,111 @@ init_database()
 # Initialize session
 initialize_session()
 
-# Custom CSS
+# Custom CSS with improved color schema
 st.markdown("""
     <style>
+        /* Modern Color Palette */
+        :root {
+            --primary: #2563eb;
+            --primary-light: #3b82f6;
+            --primary-dark: #1e40af;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+            --bg-light: #f8fafc;
+            --border-light: #e2e8f0;
+        }
+        
         .main {
             padding-top: 2rem;
+            background-color: #ffffff;
         }
+        
+        /* Metrics with gradient backgrounds */
         .stMetric {
-            background-color: #f0f2f6;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            border-left: 4px solid #1f77b4;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            padding: 1.25rem;
+            border-radius: 0.75rem;
+            border-left: 5px solid #2563eb;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
         }
+        
+        .stMetric:hover {
+            box-shadow: 0 4px 6px rgba(37,99,235,0.1);
+            border-left-color: #3b82f6;
+        }
+        
+        /* Card styling */
         .card {
             background-color: white;
             padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-top: 4px solid #2563eb;
+            transition: box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            box-shadow: 0 4px 12px rgba(37,99,235,0.12);
+        }
+        
+        /* Status badge colors */
+        .status-submitted {
+            background-color: #dbeafe;
+            color: #1e40af;
+            padding: 0.5rem 1rem;
             border-radius: 0.5rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            border-top: 3px solid #1f77b4;
+            font-weight: 500;
+        }
+        
+        .status-inprogress {
+            background-color: #fef3c7;
+            color: #92400e;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .status-resolved {
+            background-color: #dcfce7;
+            color: #166534;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+        }
+        
+        /* Sidebar styling */
+        .sidebar {
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+        }
+        
+        /* Button styling */
+        .stButton > button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .stButton > button:hover {
+            background-color: #1e40af;
+            box-shadow: 0 4px 8px rgba(37,99,235,0.2);
+        }
+        
+        /* Headers styling */
+        h1, h2, h3 {
+            color: #1e293b;
+            font-weight: 600;
+        }
+        
+        /* Divider styling */
+        hr {
+            border-color: #e2e8f0;
         }
     </style>
 """, unsafe_allow_html=True)

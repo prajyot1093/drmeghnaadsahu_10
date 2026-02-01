@@ -171,20 +171,24 @@ def show_my_requests():
         filtered_requests = [r for r in requests if r['status'] in status_filter]
         
         for req in filtered_requests:
+            # Status styling
+            status_styles = {
+                'Submitted': ('class="status-submitted"', '🔵'),
+                'In Progress': ('class="status-inprogress"', '🟡'),
+                'Resolved': ('class="status-resolved"', '🟢')
+            }
+            status_class, status_emoji = status_styles.get(req['status'], ('', '⚪'))
+            
             with st.container(border=True):
                 col1, col2, col3 = st.columns([2, 1, 1])
                 with col1:
                     st.markdown(f"**{req['title']}**")
                     st.write(req['description'][:100] + "...")
                 with col2:
-                    status_color = {
-                        'Submitted': '🔵',
-                        'In Progress': '🟡',
-                        'Resolved': '🟢'
-                    }
-                    st.write(f"{status_color.get(req['status'], '⚪')} {req['status']}")
+                    st.markdown(f"<span {status_class}>{status_emoji} {req['status']}</span>", unsafe_allow_html=True)
                 with col3:
-                    st.caption(f"Priority: {req['priority']}")
+                    priority_colors = {'Low': '🟢', 'Medium': '🟡', 'High': '🔴'}
+                    st.caption(f"{priority_colors.get(req['priority'], '')} {req['priority']}")
     else:
         st.info("No service requests yet")
 

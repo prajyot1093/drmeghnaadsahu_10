@@ -124,6 +124,15 @@ def show_service_requests():
     
     if requests:
         for req in requests:
+            # Status and priority styling
+            status_styles = {
+                'Submitted': ('class="status-submitted"', '🔵'),
+                'In Progress': ('class="status-inprogress"', '🟡'),
+                'Resolved': ('class="status-resolved"', '🟢')
+            }
+            status_class, status_emoji = status_styles.get(req['status'], ('', '⚪'))
+            priority_colors = {'Low': '🟢', 'Medium': '🟡', 'High': '🔴'}
+            
             with st.container(border=True):
                 col1, col2 = st.columns([3, 1])
                 
@@ -134,11 +143,11 @@ def show_service_requests():
                     
                     col_meta1, col_meta2, col_meta3 = st.columns(3)
                     with col_meta1:
-                        st.caption(f"Category: {req['category']}")
+                        st.caption(f"📂 Category: {req['category']}")
                     with col_meta2:
-                        st.caption(f"Priority: {req['priority']}")
+                        st.caption(f"{priority_colors.get(req['priority'], '')} Priority: {req['priority']}")
                     with col_meta3:
-                        st.caption(f"Created: {req['created_at'][:10]}")
+                        st.caption(f"📅 Created: {req['created_at'][:10]}")
                 
                 with col2:
                     new_status = st.selectbox(
@@ -149,10 +158,12 @@ def show_service_requests():
                     )
                     
                     if new_status != req['status']:
-                        if st.button("Update", key=f"update_{req['request_id']}", use_container_width=True):
+                        if st.button("✅ Update", key=f"update_{req['request_id']}", use_container_width=True):
                             if update_request_status(req['request_id'], new_status):
-                                st.success(f"Status updated to {new_status}")
+                                st.success(f"✅ Status updated to {new_status}")
                                 st.rerun()
+                            else:
+                                st.error("Failed to update status")
     else:
         st.info("No requests match the selected filters")
 
@@ -197,6 +208,15 @@ def show_tickets():
     
     if tickets:
         for ticket in tickets:
+            # Status and priority styling
+            status_styles = {
+                'Open': ('class="status-submitted"', '🔵'),
+                'In Progress': ('class="status-inprogress"', '🟡'),
+                'Resolved': ('class="status-resolved"', '🟢')
+            }
+            status_class, status_emoji = status_styles.get(ticket['status'], ('', '⚪'))
+            priority_colors = {'Low': '🟢', 'Medium': '🟡', 'High': '🔴'}
+            
             with st.container(border=True):
                 col1, col2 = st.columns([3, 1])
                 
@@ -207,11 +227,11 @@ def show_tickets():
                     
                     col_meta1, col_meta2, col_meta3 = st.columns(3)
                     with col_meta1:
-                        st.caption(f"Category: {ticket['category']}")
+                        st.caption(f"📂 Category: {ticket['category']}")
                     with col_meta2:
-                        st.caption(f"Priority: {ticket['priority']}")
+                        st.caption(f"{priority_colors.get(ticket['priority'], '')} Priority: {ticket['priority']}")
                     with col_meta3:
-                        st.caption(f"Created: {ticket['created_at'][:10]}")
+                        st.caption(f"📅 Created: {ticket['created_at'][:10]}")
                 
                 with col2:
                     new_status = st.selectbox(
@@ -222,8 +242,9 @@ def show_tickets():
                     )
                     
                     if new_status != ticket['status']:
-                        if st.button("Update", key=f"ticket_update_{ticket['ticket_id']}", use_container_width=True):
-                            st.success(f"Status updated to {new_status}")
+                        if st.button("✅ Update", key=f"ticket_update_{ticket['ticket_id']}", use_container_width=True):
+                            st.success(f"✅ Status updated to {new_status}")
+                            st.rerun()
     else:
         st.info("No tickets match the selected filters")
 

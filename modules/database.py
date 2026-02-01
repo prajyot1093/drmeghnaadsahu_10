@@ -221,15 +221,26 @@ def get_all_requests(filters: Dict = None) -> List[Dict]:
     params = []
     
     if filters:
+        # Handle status filter (supports multiple values)
         if filters.get('status'):
-            query += ' AND sr.status = ?'
-            params.append(filters['status'])
+            status_list = filters['status'] if isinstance(filters['status'], list) else [filters['status']]
+            placeholders = ','.join('?' * len(status_list))
+            query += f' AND sr.status IN ({placeholders})'
+            params.extend(status_list)
+        
+        # Handle category filter (supports multiple values)
         if filters.get('category'):
-            query += ' AND sr.category = ?'
-            params.append(filters['category'])
+            category_list = filters['category'] if isinstance(filters['category'], list) else [filters['category']]
+            placeholders = ','.join('?' * len(category_list))
+            query += f' AND sr.category IN ({placeholders})'
+            params.extend(category_list)
+        
+        # Handle priority filter (supports multiple values)
         if filters.get('priority'):
-            query += ' AND sr.priority = ?'
-            params.append(filters['priority'])
+            priority_list = filters['priority'] if isinstance(filters['priority'], list) else [filters['priority']]
+            placeholders = ','.join('?' * len(priority_list))
+            query += f' AND sr.priority IN ({placeholders})'
+            params.extend(priority_list)
     
     query += ' ORDER BY sr.created_at DESC'
     
@@ -312,15 +323,26 @@ def get_all_tickets(filters: Dict = None) -> List[Dict]:
     params = []
     
     if filters:
+        # Handle status filter (supports multiple values)
         if filters.get('status'):
-            query += ' AND t.status = ?'
-            params.append(filters['status'])
+            status_list = filters['status'] if isinstance(filters['status'], list) else [filters['status']]
+            placeholders = ','.join('?' * len(status_list))
+            query += f' AND t.status IN ({placeholders})'
+            params.extend(status_list)
+        
+        # Handle category filter (supports multiple values)
         if filters.get('category'):
-            query += ' AND t.category = ?'
-            params.append(filters['category'])
+            category_list = filters['category'] if isinstance(filters['category'], list) else [filters['category']]
+            placeholders = ','.join('?' * len(category_list))
+            query += f' AND t.category IN ({placeholders})'
+            params.extend(category_list)
+        
+        # Handle priority filter (supports multiple values)
         if filters.get('priority'):
-            query += ' AND t.priority = ?'
-            params.append(filters['priority'])
+            priority_list = filters['priority'] if isinstance(filters['priority'], list) else [filters['priority']]
+            placeholders = ','.join('?' * len(priority_list))
+            query += f' AND t.priority IN ({placeholders})'
+            params.extend(priority_list)
     
     query += ' ORDER BY t.created_at DESC'
     
