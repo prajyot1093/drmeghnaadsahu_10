@@ -127,7 +127,7 @@ def init_database():
     conn.close()
 
 def add_user(email: str, password: str, full_name: str, role: str) -> bool:
-    """Add new user with hashed password"""
+    """Add new user with hashed password and create student profile if applicable"""
     if not email or not password or not full_name or not role:
         return False
     
@@ -140,6 +140,15 @@ def add_user(email: str, password: str, full_name: str, role: str) -> bool:
                 VALUES (?, ?, ?, ?)
             ''', (email, hashed_password, full_name, role))
             conn.commit()
+            
+            # Auto-create student profile if role is student
+            if role.lower() == 'student':
+                user_id = cursor.lastrowid
+                cursor.execute('''
+                    INSERT INTO student_profiles (user_id, semester, cgpa)
+                    VALUES (?, ?, ?)
+                ''', (user_id, 1, 0.0))
+                conn.commit()
         return True
     except sqlite3.IntegrityError:
         return False
@@ -220,7 +229,7 @@ def update_student_profile(user_id: int, profile_data: Dict) -> bool:
         return False
 
 def get_student_profile(user_id: int) -> Optional[Dict]:
-    """Get student profile"""
+    """Get student profile or create default if missing"""
     if not user_id:
         return None
     
@@ -231,6 +240,19 @@ def get_student_profile(user_id: int) -> Optional[Dict]:
                 SELECT * FROM student_profiles WHERE user_id = ?
             ''', (user_id,))
             profile = cursor.fetchone()
+            
+            # If profile doesn't exist, create a default one
+            if not profile:
+                cursor.execute('''
+                    INSERT INTO student_profiles (user_id, semester, cgpa)
+                    VALUES (?, ?, ?)
+                ''', (user_id, 1, 0.0))
+                conn.commit()
+                cursor.execute('''
+                    SELECT * FROM student_profiles WHERE user_id = ?
+                ''', (user_id,))
+                profile = cursor.fetchone()
+        
         return dict(profile) if profile else None
     except Exception as e:
         print(f"Error getting student profile: {e}")

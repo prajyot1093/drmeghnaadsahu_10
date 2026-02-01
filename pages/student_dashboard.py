@@ -131,8 +131,6 @@ def show_dashboard_home(user_id):
                     """, unsafe_allow_html=True)
             else:
                 st.info("No recent tickets")
-    else:
-        st.error("Profile not found")
 
 def show_profile(user_id):
     """Display and edit student profile"""
@@ -200,8 +198,6 @@ def show_profile(user_id):
                     st.rerun()
                 else:
                     st.error("❌ Failed to update profile")
-    else:
-        st.error("Profile not found")
 
 def show_student_requests(user_id):
     """Display and manage service requests"""
