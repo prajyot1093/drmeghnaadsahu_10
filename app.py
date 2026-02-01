@@ -24,31 +24,31 @@ st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         
-        /* ===== CSS Variables - DayNight Inspired ===== */
+        /* ===== DARK THEME VARIABLES ===== */
         :root {
             --accent: #6366f1;
-            --accent-hover: #4f46e5;
+            --accent-hover: #818cf8;
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
             --info: #06b6d4;
             
-            --background: #f8fafc;
-            --surface: #ffffff;
-            --surface-hover: #f1f5f9;
+            --background: #0f172a;
+            --surface: #1e293b;
+            --surface-hover: #334155;
             
-            --text-primary: #0f172a;
-            --text-secondary: #64748b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
             --text-tertiary: #94a3b8;
             
-            --border: #e2e8f0;
-            --border-light: #f1f5f9;
+            --border: #334155;
+            --border-light: #475569;
             
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.5);
+            --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.7), 0 8px 10px -6px rgba(0, 0, 0, 0.7);
+            --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.9);
             
             --radius-sm: 0.375rem;
             --radius: 0.5rem;
