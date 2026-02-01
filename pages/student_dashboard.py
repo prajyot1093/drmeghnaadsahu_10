@@ -63,8 +63,22 @@ def show_profile(user_id):
     profile = get_user_profile(user_id)
     
     if profile:
-        # Display current info
-        st.markdown("### Current Information")
+        # Display current info with styled container
+        st.markdown("""
+            <style>
+            .profile-container {
+                background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+                padding: 1.5rem;
+                border-radius: 0.875rem;
+                border: 2px solid #e2e8f0;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+                margin-bottom: 1.5rem;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("### 📋 Current Information")
+        st.markdown('<div class="profile-container">', unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         
         with col1:
@@ -76,6 +90,7 @@ def show_profile(user_id):
             st.info(f"**Course:** {profile['course']}")
             st.info(f"**Semester:** {profile['semester']}")
             st.info(f"**Roll No:** {profile['roll_number']}")
+        st.markdown('</div>', unsafe_allow_html=True)
         
         # Edit form
         st.markdown("---")
@@ -123,7 +138,7 @@ def show_student_requests(user_id):
                     st.error("❌ Failed to submit request")
     
     # Display existing requests
-    st.markdown("### My Requests")
+    st.markdown("### 📋 My Requests")
     requests = get_service_requests(user_id=user_id)
     
     if requests:
@@ -134,6 +149,14 @@ def show_student_requests(user_id):
                 "Rejected": "🔴",
                 "In Progress": "🔵"
             }.get(req['status'], "⚪")
+            
+            # Add styled container for each request
+            st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+                     padding: 1.25rem; border-radius: 0.75rem; 
+                     border: 2px solid #e2e8f0; border-left: 5px solid #2563eb;
+                     box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 1rem;">
+            """, unsafe_allow_html=True)
             
             with st.container():
                 col1, col2, col3 = st.columns([3, 2, 1])
@@ -147,7 +170,8 @@ def show_student_requests(user_id):
                 
                 if req['admin_remarks']:
                     st.info(f"💬 Admin: {req['admin_remarks']}")
-                st.markdown("---")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.info("No service requests yet")
 
@@ -176,7 +200,7 @@ def show_student_tickets(user_id):
                     st.error("❌ Failed to create ticket")
     
     # Display existing tickets
-    st.markdown("### My Tickets")
+    st.markdown("### 🎫 My Tickets")
     tickets = get_tickets(user_id=user_id)
     
     if tickets:
@@ -194,6 +218,14 @@ def show_student_tickets(user_id):
                 "High": "🔴"
             }.get(ticket['priority'], "⚪")
             
+            # Add styled container for each ticket
+            st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #ffffff 0%, #fef3c7 5%, #ffffff 100%);
+                     padding: 1.25rem; border-radius: 0.75rem;
+                     border: 2px solid #e2e8f0; border-left: 5px solid #f59e0b;
+                     box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 1rem;">
+            """, unsafe_allow_html=True)
+            
             with st.container():
                 col1, col2, col3 = st.columns([3, 2, 1])
                 with col1:
@@ -209,6 +241,7 @@ def show_student_tickets(user_id):
                     st.markdown(f"**Description:** {ticket['description']}")
                     if ticket['admin_response']:
                         st.info(f"💬 Response: {ticket['admin_response']}")
-                st.markdown("---")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.info("No support tickets yet")

@@ -19,10 +19,10 @@ init_database()
 # Initialize session
 initialize_session()
 
-# Custom CSS with improved color schema
+# Custom CSS with improved color schema and visibility
 st.markdown("""
     <style>
-        /* Modern Color Palette */
+        /* Modern Color Palette with Better Contrast */
         :root {
             --primary: #2563eb;
             --primary-light: #3b82f6;
@@ -31,23 +31,40 @@ st.markdown("""
             --warning: #f59e0b;
             --danger: #ef4444;
             --info: #06b6d4;
-            --bg-light: #f8fafc;
-            --border-light: #e2e8f0;
+            --bg-light: #f0f4f8;
+            --bg-card: #ffffff;
+            --border-light: #cbd5e1;
+            --text-dark: #1e293b;
+            --text-light: #475569;
         }
         
+        /* Main background with subtle gradient */
         .main {
             padding-top: 2rem;
-            background-color: #ffffff;
+            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
         }
         
-        /* Metrics with gradient backgrounds */
+        /* Improved Metrics with visible backgrounds */
         .stMetric {
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            padding: 1.25rem;
-            border-radius: 0.75rem;
-            border-left: 5px solid #2563eb;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+            padding: 1.5rem;
+            border-radius: 0.875rem;
+            border: 2px solid #e2e8f0;
+            border-left: 6px solid #2563eb;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
             transition: all 0.3s ease;
+        }
+        
+        .stMetric label {
+            color: #475569 !important;
+            font-weight: 600 !important;
+            font-size: 0.95rem !important;
+        }
+        
+        .stMetric [data-testid="stMetricValue"] {
+            color: #1e293b !important;
+            font-size: 2rem !important;
+            font-weight: 700 !important;
         }
         
         .stMetric:hover {
@@ -55,18 +72,34 @@ st.markdown("""
             border-left-color: #3b82f6;
         }
         
-        /* Card styling */
+        /* Enhanced Card styling with better visibility */
         .card {
-            background-color: white;
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            border-top: 4px solid #2563eb;
-            transition: box-shadow 0.3s ease;
+            background-color: #ffffff;
+            padding: 1.75rem;
+            border-radius: 0.875rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border: 2px solid #e2e8f0;
+            border-top: 5px solid #2563eb;
+            transition: all 0.3s ease;
         }
         
         .card:hover {
-            box-shadow: 0 4px 12px rgba(37,99,235,0.12);
+            box-shadow: 0 6px 20px rgba(37,99,235,0.15);
+            border-top-color: #3b82f6;
+            transform: translateY(-2px);
+        }
+        
+        /* Container backgrounds */
+        [data-testid="stVerticalBlock"] > [style*="flex-direction: column"] > div {
+            background: transparent;
+        }
+        
+        /* Info boxes with visible backgrounds */
+        .stInfo, .stSuccess, .stWarning, .stError {
+            border-radius: 0.75rem;
+            padding: 1rem 1.25rem;
+            border-left: 5px solid;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
         }
         
         /* Status badge colors */
@@ -94,25 +127,101 @@ st.markdown("""
             font-weight: 500;
         }
         
-        /* Sidebar styling */
-        .sidebar {
-            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+        /* Enhanced Sidebar styling */
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #f8fafc 0%, #e0e7ff 100%);
+            border-right: 2px solid #cbd5e1;
         }
         
-        /* Button styling */
+        [data-testid="stSidebar"] .stRadio > label {
+            background-color: #ffffff;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            margin: 0.25rem 0;
+            border: 2px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+        
+        [data-testid="stSidebar"] .stRadio > label:hover {
+            background-color: #dbeafe;
+            border-color: #2563eb;
+        }
+        
+        /* Expander styling */
+        .streamlit-expanderHeader {
+            background-color: #f1f5f9 !important;
+            border: 2px solid #cbd5e1 !important;
+            border-radius: 0.5rem !important;
+            font-weight: 600 !important;
+            color: #1e293b !important;
+        }
+        
+        .streamlit-expanderContent {
+            background-color: #ffffff !important;
+            border: 2px solid #e2e8f0 !important;
+            border-top: none !important;
+            border-radius: 0 0 0.5rem 0.5rem !important;
+        }
+        
+        /* Tab styling */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 0.5rem;
+            background-color: #f8fafc;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+        }
+        
+        .stTabs [data-baseweb="tab"] {
+            background-color: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            color: #475569;
+            font-weight: 600;
+        }
+        
+        .stTabs [aria-selected="true"] {
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            color: white !important;
+            border-color: #2563eb;
+        }
+        
+        /* Enhanced Input fields */
+        .stTextInput > div > div > input,
+        .stSelectbox > div > div > select,
+        .stTextArea > div > div > textarea {
+            background-color: #ffffff !important;
+            border: 2px solid #cbd5e1 !important;
+            border-radius: 0.5rem !important;
+            padding: 0.75rem !important;
+            color: #1e293b !important;
+            font-size: 1rem !important;
+        }
+        
+        .stTextInput > div > div > input:focus,
+        .stSelectbox > div > div > select:focus,
+        .stTextArea > div > div > textarea:focus {
+            border-color: #2563eb !important;
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1) !important;
+        }
+        
+        /* Button styling with better visibility */
         .stButton > button {
-            background-color: #2563eb;
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
             color: white;
             border: none;
-            border-radius: 0.5rem;
-            padding: 0.5rem 1rem;
-            font-weight: 500;
+            border-radius: 0.625rem;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            font-size: 1rem;
+            box-shadow: 0 2px 8px rgba(37,99,235,0.25);
             transition: all 0.3s ease;
         }
         
         .stButton > button:hover {
-            background-color: #1e40af;
-            box-shadow: 0 4px 8px rgba(37,99,235,0.2);
+            background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+            box-shadow: 0 4px 12px rgba(37,99,235,0.35);
+            transform: translateY(-2px);
         }
         
         /* Headers styling */
