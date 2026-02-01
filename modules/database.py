@@ -1,3 +1,10 @@
+"""
+Professional ERP System Database Module
+Based on Academic Research Paper Requirements
+Includes: Registration, Academic Management, Results Analysis, Performance Tracking, 
+Placement Prediction, Financial Management
+"""
+
 import sqlite3
 import os
 from datetime import datetime
@@ -9,17 +16,25 @@ import hashlib
 DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
 os.makedirs(DATA_DIR, exist_ok=True)
 
-DATABASE_PATH = os.path.join(DATA_DIR, 'portal.db')
+DATABASE_PATH = os.path.join(DATA_DIR, 'erp_system.db')
+
+# Constants
+ROLES = ['student', 'faculty', 'admin']
+ACADEMIC_STATUSES = ['Active', 'Inactive', 'On Leave', 'Graduated']
+FEE_STATUSES = ['Pending', 'Partial', 'Paid', 'Overdue']
+SEMESTERS = list(range(1, 9))
+GRADE_SCALE = {'A': 4.0, 'B': 3.0, 'C': 2.0, 'D': 1.0, 'F': 0.0}
 
 def get_connection():
-    """Get database connection"""
+    """Get database connection with proper configuration"""
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 @contextmanager
 def get_db_connection():
-    """Context manager for database connections - ensures proper cleanup"""
+    """Context manager for database connections"""
     conn = get_connection()
     try:
         yield conn
@@ -31,42 +46,90 @@ def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
 def init_database():
-    """Initialize database with all required tables"""
+    """Initialize comprehensive ERP database with all required tables"""
     conn = get_connection()
     cursor = conn.cursor()
     
-    # Users table
+    # Enhanced Users table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
             full_name TEXT NOT NULL,
-            role TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            phone TEXT,
+            role TEXT NOT NULL CHECK(role IN ('student', 'faculty', 'admin')),
+            is_active BOOLEAN DEFAULT 1,
+            last_login TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
-    # Student Profile table
+    # Enhanced Student Profile
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS student_profiles (
             profile_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            roll_number TEXT UNIQUE,
-            department TEXT,
-            semester INTEGER,
-            cgpa REAL,
+            user_id INTEGER NOT NULL UNIQUE,
+            roll_number TEXT UNIQUE NOT NULL,
+            department TEXT NOT NULL,
+            semester INTEGER NOT NULL,
+            cgpa REAL DEFAULT 0.0,
             phone TEXT,
             address TEXT,
             father_name TEXT,
             mother_name TEXT,
             dob TEXT,
+            admission_date TEXT,
+            academic_status TEXT DEFAULT 'Active',
+            cet_rank TEXT,
+            admission_quota TEXT,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(user_id)
+            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
         )
     ''')
     
-    # Service Requests table
+    # Academic Marks (IA Marks) - Core for Performance Analysis
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS academic_marks (
+            marks_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            subject TEXT NOT NULL,
+            semester INTEGER NOT NULL,
+            internal_marks REAL,
+            external_marks REAL,
+            total_marks REAL,
+            percentage REAL,
+            grade TEXT,
+            gpa REAL,
+            recorded_by INTEGER,
+            recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(user_id),
+            FOREIGN KEY (recorded_by) REFERENCES users(user_id),
+            UNIQUE(user_id, subject, semester)
+        )
+    ''')
+    
+    # University Results - External Result Integration
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS university_results (
+            result_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            semester INTEGER NOT NULL,
+            usn TEXT,
+            total_marks REAL,
+            pass_marks REAL,
+            percentage REAL,
+            sgpa REAL,
+            result_status TEXT,
+            published_date TEXT,
+            fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(user_id),
+            UNIQUE(user_id, semester)
+        )
+    ''')
+    
+    # Service Requests
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS service_requests (
             request_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,26 +141,28 @@ def init_database():
             status TEXT DEFAULT 'Submitted',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(user_id)
+            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
         )
     ''')
     
-    # Admission Registration table
+    # Semester Registration
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS admission_registrations (
+        CREATE TABLE IF NOT EXISTS semester_registrations (
             registration_id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
-            current_sem INTEGER NOT NULL,
-            desired_sem INTEGER NOT NULL,
+            current_semester INTEGER NOT NULL,
+            desired_semester INTEGER NOT NULL,
             cgpa_required REAL,
             status TEXT DEFAULT 'Pending',
+            approved_by INTEGER,
             submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             approved_at TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(user_id)
+            FOREIGN KEY (user_id) REFERENCES users(user_id),
+            FOREIGN KEY (approved_by) REFERENCES users(user_id)
         )
     ''')
     
-    # Exam Registration table
+    # Exam Registration
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS exam_registrations (
             exam_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -105,13 +170,48 @@ def init_database():
             exam_name TEXT NOT NULL,
             exam_date TEXT NOT NULL,
             subject TEXT NOT NULL,
-            status TEXT DEFAULT 'Submitted',
+            exam_marks REAL,
+            status TEXT DEFAULT 'Registered',
             registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(user_id)
         )
     ''')
     
-    # Tickets table
+    # Attendance Tracking
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS attendance (
+            attendance_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            subject TEXT NOT NULL,
+            semester INTEGER NOT NULL,
+            total_classes INTEGER DEFAULT 0,
+            attended_classes INTEGER DEFAULT 0,
+            attendance_percentage REAL DEFAULT 0.0,
+            recorded_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(user_id),
+            UNIQUE(user_id, subject, semester)
+        )
+    ''')
+    
+    # Fee Management
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS fees (
+            fee_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            semester INTEGER NOT NULL,
+            amount_due REAL NOT NULL,
+            amount_paid REAL DEFAULT 0.0,
+            fee_status TEXT DEFAULT 'Pending',
+            due_date TEXT,
+            paid_date TEXT,
+            transaction_id TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(user_id),
+            UNIQUE(user_id, semester)
+        )
+    ''')
+    
+    # Support Tickets
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS tickets (
             ticket_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -123,31 +223,75 @@ def init_database():
             status TEXT DEFAULT 'Open',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             resolved_at TIMESTAMP,
+            resolved_by INTEGER,
+            FOREIGN KEY (user_id) REFERENCES users(user_id),
+            FOREIGN KEY (resolved_by) REFERENCES users(user_id)
+        )
+    ''')
+    
+    # Faculty Profile
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS faculty_profiles (
+            faculty_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL UNIQUE,
+            employee_id TEXT UNIQUE NOT NULL,
+            department TEXT NOT NULL,
+            designation TEXT,
+            qualification TEXT,
+            phone TEXT,
+            address TEXT,
+            specialization TEXT,
+            joined_date TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Placement Records - For Placement Prediction
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS placement_records (
+            placement_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            company_name TEXT,
+            package REAL,
+            position TEXT,
+            placement_date TEXT,
+            placement_status TEXT,
+            eligibility_criteria_met BOOLEAN,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(user_id)
         )
     ''')
     
-    # Student Marks table
+    # Performance Metrics - For Analytics
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS student_marks (
-            marks_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS performance_metrics (
+            metric_id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
-            subject TEXT NOT NULL,
-            marks REAL NOT NULL,
-            total_marks REAL DEFAULT 100,
-            percentage REAL,
-            grade TEXT,
-            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(user_id)
+            semester INTEGER NOT NULL,
+            sgpa REAL,
+            cgpa REAL,
+            attendance_percentage REAL,
+            placement_eligible BOOLEAN,
+            predicted_placement REAL,
+            analysis_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(user_id),
+            UNIQUE(user_id, semester)
         )
     ''')
     
     conn.commit()
     conn.close()
 
-def add_user(email: str, password: str, full_name: str, role: str) -> bool:
-    """Add new user with hashed password and create student profile if applicable"""
-    if not email or not password or not full_name or not role:
+# ============================================================================
+# USER MANAGEMENT
+# ============================================================================
+
+def add_user(email: str, password: str, full_name: str, role: str, phone: str = None) -> bool:
+    """Add new user with validation"""
+    if not all([email, password, full_name, role]):
+        return False
+    
+    if role not in ROLES:
         return False
     
     try:
@@ -155,20 +299,11 @@ def add_user(email: str, password: str, full_name: str, role: str) -> bool:
             cursor = conn.cursor()
             hashed_password = hash_password(password)
             cursor.execute('''
-                INSERT INTO users (email, password, full_name, role)
-                VALUES (?, ?, ?, ?)
-            ''', (email, hashed_password, full_name, role))
+                INSERT INTO users (email, password, full_name, role, phone)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (email.lower(), hashed_password, full_name.strip(), role, phone))
             conn.commit()
-            
-            # Auto-create student profile if role is student
-            if role.lower() == 'student':
-                user_id = cursor.lastrowid
-                cursor.execute('''
-                    INSERT INTO student_profiles (user_id, semester, cgpa)
-                    VALUES (?, ?, ?)
-                ''', (user_id, 1, 0.0))
-                conn.commit()
-        return True
+            return True
     except sqlite3.IntegrityError:
         return False
     except Exception as e:
@@ -176,7 +311,7 @@ def add_user(email: str, password: str, full_name: str, role: str) -> bool:
         return False
 
 def get_user(email: str, password: str) -> Optional[Dict]:
-    """Get user by email and hashed password"""
+    """Authenticate user"""
     if not email or not password:
         return None
     
@@ -185,24 +320,47 @@ def get_user(email: str, password: str) -> Optional[Dict]:
             cursor = conn.cursor()
             hashed_password = hash_password(password)
             cursor.execute('''
-                SELECT * FROM users WHERE email = ? AND password = ?
-            ''', (email, hashed_password))
+                SELECT * FROM users WHERE LOWER(email) = ? AND password = ? AND is_active = 1
+            ''', (email.lower(), hashed_password))
             user = cursor.fetchone()
+        
+        if user:
+            cursor.execute('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE user_id = ?', (user['user_id'],))
+            conn.commit()
+        
         return dict(user) if user else None
     except Exception as e:
         print(f"Error getting user: {e}")
         return None
 
+def get_user_by_id(user_id: int) -> Optional[Dict]:
+    """Get user by ID"""
+    if not user_id:
+        return None
+    
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM users WHERE user_id = ? AND is_active = 1', (user_id,))
+            user = cursor.fetchone()
+        return dict(user) if user else None
+    except Exception as e:
+        print(f"Error getting user by ID: {e}")
+        return None
+
+# ============================================================================
+# STUDENT MANAGEMENT
+# ============================================================================
+
 def update_student_profile(user_id: int, profile_data: Dict) -> bool:
-    """Update student profile"""
+    """Update or create student profile"""
     if not user_id or not profile_data:
         return False
     
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            # Check if profile exists, if not create it
-            cursor.execute('SELECT * FROM student_profiles WHERE user_id = ?', (user_id,))
+            cursor.execute('SELECT profile_id FROM student_profiles WHERE user_id = ?', (user_id,))
             profile = cursor.fetchone()
             
             if profile:
@@ -210,36 +368,47 @@ def update_student_profile(user_id: int, profile_data: Dict) -> bool:
                     UPDATE student_profiles SET
                     roll_number = ?, department = ?, semester = ?, cgpa = ?,
                     phone = ?, address = ?, father_name = ?, mother_name = ?, dob = ?,
+                    admission_date = ?, academic_status = ?, cet_rank = ?, admission_quota = ?,
                     updated_at = CURRENT_TIMESTAMP
                     WHERE user_id = ?
                 ''', (
                     profile_data.get('roll_number'),
                     profile_data.get('department'),
                     profile_data.get('semester'),
-                    profile_data.get('cgpa'),
+                    profile_data.get('cgpa', 0),
                     profile_data.get('phone'),
                     profile_data.get('address'),
                     profile_data.get('father_name'),
                     profile_data.get('mother_name'),
                     profile_data.get('dob'),
+                    profile_data.get('admission_date'),
+                    profile_data.get('academic_status', 'Active'),
+                    profile_data.get('cet_rank'),
+                    profile_data.get('admission_quota'),
                     user_id
                 ))
             else:
                 cursor.execute('''
                     INSERT INTO student_profiles 
-                    (user_id, roll_number, department, semester, cgpa, phone, address, father_name, mother_name, dob)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (user_id, roll_number, department, semester, cgpa, phone, address, 
+                     father_name, mother_name, dob, admission_date, academic_status, 
+                     cet_rank, admission_quota)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     user_id,
                     profile_data.get('roll_number'),
                     profile_data.get('department'),
-                    profile_data.get('semester'),
-                    profile_data.get('cgpa'),
+                    profile_data.get('semester', 1),
+                    profile_data.get('cgpa', 0),
                     profile_data.get('phone'),
                     profile_data.get('address'),
                     profile_data.get('father_name'),
                     profile_data.get('mother_name'),
-                    profile_data.get('dob')
+                    profile_data.get('dob'),
+                    profile_data.get('admission_date'),
+                    profile_data.get('academic_status', 'Active'),
+                    profile_data.get('cet_rank'),
+                    profile_data.get('admission_quota')
                 ))
             conn.commit()
         return True
@@ -248,257 +417,31 @@ def update_student_profile(user_id: int, profile_data: Dict) -> bool:
         return False
 
 def get_student_profile(user_id: int) -> Optional[Dict]:
-    """Get student profile or create default if missing"""
+    """Get student profile"""
     if not user_id:
         return None
     
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute('''
-                SELECT * FROM student_profiles WHERE user_id = ?
-            ''', (user_id,))
+            cursor.execute('SELECT * FROM student_profiles WHERE user_id = ?', (user_id,))
             profile = cursor.fetchone()
-            
-            # If profile doesn't exist, create a default one
-            if not profile:
-                cursor.execute('''
-                    INSERT INTO student_profiles (user_id, semester, cgpa)
-                    VALUES (?, ?, ?)
-                ''', (user_id, 1, 0.0))
-                conn.commit()
-                cursor.execute('''
-                    SELECT * FROM student_profiles WHERE user_id = ?
-                ''', (user_id,))
-                profile = cursor.fetchone()
-        
         return dict(profile) if profile else None
     except Exception as e:
         print(f"Error getting student profile: {e}")
         return None
 
-def submit_service_request(user_id: int, title: str, description: str, 
-                          category: str, priority: str) -> bool:
-    """Submit new service request with validation"""
-    # Validate inputs
-    if not all([user_id, title, description, category, priority]):
-        print("Error: Missing required fields")
-        return False
-    
-    if len(title.strip()) < 3 or len(description.strip()) < 5:
-        print("Error: Title must be at least 3 chars, description at least 5 chars")
-        return False
-    
-    try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT INTO service_requests 
-                (user_id, title, description, category, priority)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (user_id, title.strip(), description.strip(), category, priority))
-            conn.commit()
-        return True
-    except Exception as e:
-        print(f"Error submitting request: {e}")
-        return False
-
-def get_user_requests(user_id: int) -> List[Dict]:
-    """Get all requests for a user"""
-    if not user_id:
-        return []
-    
-    try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                SELECT * FROM service_requests WHERE user_id = ?
-                ORDER BY created_at DESC
-            ''', (user_id,))
-            requests = cursor.fetchall()
-        return [dict(req) for req in requests]
-    except Exception as e:
-        print(f"Error getting user requests: {e}")
-        return []
-
-def get_all_requests(filters: Dict = None) -> List[Dict]:
-    """Get all requests with optional filters"""
-    try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            
-            query = '''
-                SELECT sr.*, u.full_name, u.email FROM service_requests sr
-                JOIN users u ON sr.user_id = u.user_id
-                WHERE 1=1
-            '''
-            params = []
-            
-            if filters:
-                # Handle status filter (supports multiple values)
-                if filters.get('status'):
-                    status_list = filters['status'] if isinstance(filters['status'], list) else [filters['status']]
-                    placeholders = ','.join('?' * len(status_list))
-                    query += f' AND sr.status IN ({placeholders})'
-                    params.extend(status_list)
-                
-                # Handle category filter (supports multiple values)
-                if filters.get('category'):
-                    category_list = filters['category'] if isinstance(filters['category'], list) else [filters['category']]
-                    placeholders = ','.join('?' * len(category_list))
-                    query += f' AND sr.category IN ({placeholders})'
-                    params.extend(category_list)
-                
-                # Handle priority filter (supports multiple values)
-                if filters.get('priority'):
-                    priority_list = filters['priority'] if isinstance(filters['priority'], list) else [filters['priority']]
-                    placeholders = ','.join('?' * len(priority_list))
-                    query += f' AND sr.priority IN ({placeholders})'
-                    params.extend(priority_list)
-            
-            query += ' ORDER BY sr.created_at DESC'
-            
-            cursor.execute(query, params)
-            requests = cursor.fetchall()
-        return [dict(req) for req in requests]
-    except Exception as e:
-        print(f"Error getting all requests: {e}")
-        return []
-
-def update_request_status(request_id: int, status: str) -> bool:
-    """Update request status"""
-    if not request_id or not status:
-        return False
-    
-    try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                UPDATE service_requests 
-                SET status = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE request_id = ?
-            ''', (status, request_id))
-            conn.commit()
-        return True
-    except Exception as e:
-        print(f"Error updating status: {e}")
-        return False
-
-def get_request_stats() -> Dict:
-    """Get request statistics"""
-    try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                SELECT status, COUNT(*) as count FROM service_requests
-                GROUP BY status
-            ''')
-            stats = {row['status']: row['count'] for row in cursor.fetchall()}
-        
-        return stats
-    except Exception as e:
-        print(f"Error getting stats: {e}")
-        return {}
-
-def submit_ticket(user_id: int, title: str, description: str, 
-                 category: str, priority: str) -> bool:
-    """Submit support ticket with validation"""
-    # Validate inputs
-    if not all([user_id, title, description, category, priority]):
-        print("Error: Missing required fields")
-        return False
-    
-    if len(title.strip()) < 3 or len(description.strip()) < 5:
-        print("Error: Title must be at least 3 chars, description at least 5 chars")
-        return False
-    
-    try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT INTO tickets 
-                (user_id, title, description, category, priority)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (user_id, title.strip(), description.strip(), category, priority))
-            conn.commit()
-        return True
-    except Exception as e:
-        print(f"Error submitting ticket: {e}")
-        return False
-
-def get_user_tickets(user_id: int) -> List[Dict]:
-    """Get all tickets for a user"""
-    if not user_id:
-        return []
-    
-    try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                SELECT * FROM tickets WHERE user_id = ?
-                ORDER BY created_at DESC
-            ''', (user_id,))
-            tickets = cursor.fetchall()
-        return [dict(ticket) for ticket in tickets]
-    except Exception as e:
-        print(f"Error getting user tickets: {e}")
-        return []
-
-def get_all_tickets(filters: Dict = None) -> List[Dict]:
-    """Get all tickets with optional filters"""
-    try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            
-            query = '''
-                SELECT t.*, u.full_name, u.email FROM tickets t
-                JOIN users u ON t.user_id = u.user_id
-                WHERE 1=1
-            '''
-            params = []
-            
-            if filters:
-                # Handle status filter (supports multiple values)
-                if filters.get('status'):
-                    status_list = filters['status'] if isinstance(filters['status'], list) else [filters['status']]
-                    placeholders = ','.join('?' * len(status_list))
-                    query += f' AND t.status IN ({placeholders})'
-                    params.extend(status_list)
-                
-                # Handle category filter (supports multiple values)
-                if filters.get('category'):
-                    category_list = filters['category'] if isinstance(filters['category'], list) else [filters['category']]
-                    placeholders = ','.join('?' * len(category_list))
-                    query += f' AND t.category IN ({placeholders})'
-                    params.extend(category_list)
-                
-                # Handle priority filter (supports multiple values)
-                if filters.get('priority'):
-                    priority_list = filters['priority'] if isinstance(filters['priority'], list) else [filters['priority']]
-                    placeholders = ','.join('?' * len(priority_list))
-                    query += f' AND t.priority IN ({placeholders})'
-                    params.extend(priority_list)
-            
-            query += ' ORDER BY t.created_at DESC'
-            
-            cursor.execute(query, params)
-            tickets = cursor.fetchall()
-        return [dict(ticket) for ticket in tickets]
-    except Exception as e:
-        print(f"Error getting all tickets: {e}")
-        return []
 def get_all_students() -> List[Dict]:
-    """Get all students with their profiles"""
+    """Get all registered students"""
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT u.user_id, u.full_name, u.email, sp.roll_number, 
-                       sp.department, sp.semester, sp.cgpa
+                SELECT u.user_id, u.full_name, u.email, u.phone,
+                       sp.roll_number, sp.department, sp.semester, sp.cgpa, sp.academic_status
                 FROM users u
                 LEFT JOIN student_profiles sp ON u.user_id = sp.user_id
-                WHERE u.role = 'student'
+                WHERE u.role = 'student' AND u.is_active = 1
                 ORDER BY u.full_name
             ''')
             students = cursor.fetchall()
@@ -507,60 +450,263 @@ def get_all_students() -> List[Dict]:
         print(f"Error getting students: {e}")
         return []
 
-def add_student_marks(user_id: int, subject: str, marks: float, 
-                     total_marks: float = 100) -> bool:
-    """Add or update student marks"""
-    if not all([user_id, subject, marks is not None]):
+# ============================================================================
+# ACADEMIC MARKS & PERFORMANCE
+# ============================================================================
+
+def add_student_marks(user_id: int, subject: str, internal_marks: float, 
+                     external_marks: float, semester: int, faculty_id: int = None) -> bool:
+    """Add or update student academic marks"""
+    if not all([user_id, subject, semester]):
         return False
     
     try:
-        percentage = (marks / total_marks * 100) if total_marks > 0 else 0
+        total_marks = (internal_marks or 0) + (external_marks or 0)
+        percentage = (total_marks / 200 * 100) if total_marks > 0 else 0
         
         # Calculate grade
         if percentage >= 90:
             grade = 'A'
+            gpa = 4.0
         elif percentage >= 80:
             grade = 'B'
+            gpa = 3.0
         elif percentage >= 70:
             grade = 'C'
+            gpa = 2.0
         elif percentage >= 60:
             grade = 'D'
+            gpa = 1.0
         else:
             grade = 'F'
+            gpa = 0.0
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            
-            # Check if marks already exist
             cursor.execute('''
-                SELECT marks_id FROM student_marks 
-                WHERE user_id = ? AND subject = ?
-            ''', (user_id, subject))
+                SELECT marks_id FROM academic_marks 
+                WHERE user_id = ? AND subject = ? AND semester = ?
+            ''', (user_id, subject, semester))
             
             existing = cursor.fetchone()
             
             if existing:
                 cursor.execute('''
-                    UPDATE student_marks 
-                    SET marks = ?, total_marks = ?, percentage = ?, grade = ?,
-                        uploaded_at = CURRENT_TIMESTAMP
-                    WHERE user_id = ? AND subject = ?
-                ''', (marks, total_marks, percentage, grade, user_id, subject))
+                    UPDATE academic_marks 
+                    SET internal_marks = ?, external_marks = ?, total_marks = ?, 
+                        percentage = ?, grade = ?, gpa = ?, recorded_at = CURRENT_TIMESTAMP
+                    WHERE user_id = ? AND subject = ? AND semester = ?
+                ''', (internal_marks, external_marks, total_marks, percentage, grade, 
+                      gpa, user_id, subject, semester))
             else:
                 cursor.execute('''
-                    INSERT INTO student_marks 
-                    (user_id, subject, marks, total_marks, percentage, grade)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ''', (user_id, subject, marks, total_marks, percentage, grade))
+                    INSERT INTO academic_marks 
+                    (user_id, subject, semester, internal_marks, external_marks, 
+                     total_marks, percentage, grade, gpa, recorded_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (user_id, subject, semester, internal_marks, external_marks, 
+                      total_marks, percentage, grade, gpa, faculty_id))
             
             conn.commit()
+        
+        # Update performance metrics
+        update_student_performance_metrics(user_id, semester)
         return True
     except Exception as e:
         print(f"Error adding marks: {e}")
         return False
 
-def get_student_marks(user_id: int) -> List[Dict]:
-    """Get all marks for a student"""
+def get_student_marks(user_id: int, semester: int = None) -> List[Dict]:
+    """Get student marks"""
+    if not user_id:
+        return []
+    
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            if semester:
+                cursor.execute('''
+                    SELECT * FROM academic_marks 
+                    WHERE user_id = ? AND semester = ?
+                    ORDER BY subject
+                ''', (user_id, semester))
+            else:
+                cursor.execute('''
+                    SELECT * FROM academic_marks 
+                    WHERE user_id = ?
+                    ORDER BY semester DESC, subject
+                ''', (user_id,))
+            marks = cursor.fetchall()
+        return [dict(mark) for mark in marks]
+    except Exception as e:
+        print(f"Error getting marks: {e}")
+        return []
+
+def update_student_performance_metrics(user_id: int, semester: int) -> bool:
+    """Calculate and update performance metrics"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Get all marks for this semester
+            cursor.execute('''
+                SELECT AVG(gpa) as avg_gpa, AVG(percentage) as avg_percentage
+                FROM academic_marks 
+                WHERE user_id = ? AND semester = ?
+            ''', (user_id, semester))
+            
+            result = cursor.fetchone()
+            sgpa = result['avg_gpa'] or 0.0
+            
+            # Get cumulative GPA
+            cursor.execute('''
+                SELECT AVG(gpa) as cgpa FROM academic_marks WHERE user_id = ?
+            ''', (user_id,))
+            
+            cgpa_result = cursor.fetchone()
+            cgpa = cgpa_result['cgpa'] or 0.0
+            
+            # Get attendance
+            cursor.execute('''
+                SELECT AVG(attendance_percentage) as avg_attendance
+                FROM attendance WHERE user_id = ? AND semester = ?
+            ''', (user_id, semester))
+            
+            att_result = cursor.fetchone()
+            attendance = att_result['avg_attendance'] or 0.0
+            
+            # Placement eligibility
+            placement_eligible = (sgpa >= 2.0 and attendance >= 75.0)
+            
+            # Check if record exists
+            cursor.execute('''
+                SELECT metric_id FROM performance_metrics 
+                WHERE user_id = ? AND semester = ?
+            ''', (user_id, semester))
+            
+            if cursor.fetchone():
+                cursor.execute('''
+                    UPDATE performance_metrics 
+                    SET sgpa = ?, cgpa = ?, attendance_percentage = ?, 
+                        placement_eligible = ?
+                    WHERE user_id = ? AND semester = ?
+                ''', (sgpa, cgpa, attendance, placement_eligible, user_id, semester))
+            else:
+                cursor.execute('''
+                    INSERT INTO performance_metrics 
+                    (user_id, semester, sgpa, cgpa, attendance_percentage, placement_eligible)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (user_id, semester, sgpa, cgpa, attendance, placement_eligible))
+            
+            conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error updating metrics: {e}")
+        return False
+
+# ============================================================================
+# ATTENDANCE MANAGEMENT
+# ============================================================================
+
+def update_attendance(user_id: int, subject: str, semester: int, 
+                     total_classes: int, attended_classes: int) -> bool:
+    """Update attendance record"""
+    if not all([user_id, subject, semester]):
+        return False
+    
+    try:
+        attendance_percentage = (attended_classes / total_classes * 100) if total_classes > 0 else 0
+        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT attendance_id FROM attendance 
+                WHERE user_id = ? AND subject = ? AND semester = ?
+            ''', (user_id, subject, semester))
+            
+            if cursor.fetchone():
+                cursor.execute('''
+                    UPDATE attendance 
+                    SET total_classes = ?, attended_classes = ?, attendance_percentage = ?
+                    WHERE user_id = ? AND subject = ? AND semester = ?
+                ''', (total_classes, attended_classes, attendance_percentage, user_id, subject, semester))
+            else:
+                cursor.execute('''
+                    INSERT INTO attendance 
+                    (user_id, subject, semester, total_classes, attended_classes, attendance_percentage)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (user_id, subject, semester, total_classes, attended_classes, attendance_percentage))
+            
+            conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error updating attendance: {e}")
+        return False
+
+def get_student_attendance(user_id: int, semester: int = None) -> List[Dict]:
+    """Get student attendance"""
+    if not user_id:
+        return []
+    
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            if semester:
+                cursor.execute('''
+                    SELECT * FROM attendance 
+                    WHERE user_id = ? AND semester = ?
+                    ORDER BY subject
+                ''', (user_id, semester))
+            else:
+                cursor.execute('''
+                    SELECT * FROM attendance 
+                    WHERE user_id = ?
+                    ORDER BY semester DESC, subject
+                ''', (user_id,))
+            attendance = cursor.fetchall()
+        return [dict(att) for att in attendance]
+    except Exception as e:
+        print(f"Error getting attendance: {e}")
+        return []
+
+# ============================================================================
+# FEE MANAGEMENT
+# ============================================================================
+
+def update_fee_record(user_id: int, semester: int, amount_due: float, amount_paid: float = 0) -> bool:
+    """Update fee record"""
+    if not all([user_id, semester, amount_due]):
+        return False
+    
+    try:
+        fee_status = 'Paid' if amount_paid >= amount_due else ('Partial' if amount_paid > 0 else 'Pending')
+        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT fee_id FROM fees WHERE user_id = ? AND semester = ?
+            ''', (user_id, semester))
+            
+            if cursor.fetchone():
+                cursor.execute('''
+                    UPDATE fees 
+                    SET amount_due = ?, amount_paid = ?, fee_status = ?
+                    WHERE user_id = ? AND semester = ?
+                ''', (amount_due, amount_paid, fee_status, user_id, semester))
+            else:
+                cursor.execute('''
+                    INSERT INTO fees (user_id, semester, amount_due, amount_paid, fee_status)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (user_id, semester, amount_due, amount_paid, fee_status))
+            
+            conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error updating fees: {e}")
+        return False
+
+def get_student_fees(user_id: int) -> List[Dict]:
+    """Get all fee records for student"""
     if not user_id:
         return []
     
@@ -568,27 +714,91 @@ def get_student_marks(user_id: int) -> List[Dict]:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT * FROM student_marks 
-                WHERE user_id = ?
-                ORDER BY uploaded_at DESC
+                SELECT * FROM fees WHERE user_id = ? ORDER BY semester
             ''', (user_id,))
-            marks = cursor.fetchall()
-        return [dict(mark) for mark in marks]
+            fees = cursor.fetchall()
+        return [dict(fee) for fee in fees]
     except Exception as e:
-        print(f"Error getting marks: {e}")
+        print(f"Error getting fees: {e}")
         return []
 
-def delete_student_marks(marks_id: int) -> bool:
-    """Delete student marks"""
-    if not marks_id:
-        return False
-    
+# ============================================================================
+# PLACEMENT MANAGEMENT
+# ============================================================================
+
+def predict_placement_eligibility(user_id: int) -> Dict:
+    """Predict placement eligibility based on performance"""
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute('DELETE FROM student_marks WHERE marks_id = ?', (marks_id,))
-            conn.commit()
-        return True
+            
+            # Get latest performance metrics
+            cursor.execute('''
+                SELECT sgpa, cgpa, attendance_percentage, placement_eligible
+                FROM performance_metrics WHERE user_id = ?
+                ORDER BY semester DESC LIMIT 1
+            ''', (user_id,))
+            
+            metrics = cursor.fetchone()
+            
+            if metrics:
+                return {
+                    'sgpa': metrics['sgpa'],
+                    'cgpa': metrics['cgpa'],
+                    'attendance': metrics['attendance_percentage'],
+                    'eligible': metrics['placement_eligible'],
+                    'eligibility_score': (metrics['sgpa'] * 0.6 + metrics['attendance_percentage']/100 * 0.4) if metrics['sgpa'] else 0
+                }
+            return {'eligible': False, 'eligibility_score': 0}
     except Exception as e:
-        print(f"Error deleting marks: {e}")
-        return False
+        print(f"Error predicting placement: {e}")
+        return {'eligible': False}
+
+# ============================================================================
+# ANALYTICS & REPORTING
+# ============================================================================
+
+def get_departmental_analytics(department: str) -> Dict:
+    """Get analytics for a department"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Total students
+            cursor.execute('''
+                SELECT COUNT(*) as count FROM student_profiles WHERE department = ?
+            ''', (department,))
+            total_students = cursor.fetchone()['count']
+            
+            # Average CGPA
+            cursor.execute('''
+                SELECT AVG(cgpa) as avg_cgpa FROM student_profiles WHERE department = ?
+            ''', (department,))
+            avg_cgpa = cursor.fetchone()['avg_cgpa'] or 0
+            
+            # Pass percentage (Grade != F)
+            cursor.execute('''
+                SELECT COUNT(*) as pass_count FROM academic_marks am
+                JOIN student_profiles sp ON am.user_id = sp.user_id
+                WHERE sp.department = ? AND am.grade != 'F'
+            ''', (department,))
+            pass_count = cursor.fetchone()['pass_count']
+            
+            cursor.execute('''
+                SELECT COUNT(*) as total_marks FROM academic_marks am
+                JOIN student_profiles sp ON am.user_id = sp.user_id
+                WHERE sp.department = ?
+            ''', (department,))
+            total_marks = cursor.fetchone()['total_marks']
+            
+            pass_percentage = (pass_count / total_marks * 100) if total_marks > 0 else 0
+            
+            return {
+                'total_students': total_students,
+                'avg_cgpa': round(avg_cgpa, 2),
+                'pass_percentage': round(pass_percentage, 2),
+                'fail_percentage': round(100 - pass_percentage, 2)
+            }
+    except Exception as e:
+        print(f"Error getting analytics: {e}")
+        return {}
