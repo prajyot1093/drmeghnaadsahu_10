@@ -444,10 +444,7 @@ def main():
                 st.markdown("**MENU**")
                 page = st.radio(
                     "nav",
-                    ["🏠 Dashboard", "👤 Profile", "📋 Service Requests", "🎫 Tickets",
-                     "📊 Analytics", "📄 Documents", "📋 Attendance", "📝 Exams", 
-                     "🎯 GPA Calculator", "📥 Export Data", "🔔 Notifications", 
-                     "🔍 Search", "💰 Fee Management"],
+                    ["🏠 Dashboard", "� Attendance", "📝 Exams", "🎫 Tickets", "📧 Complaints"],
                     key="student_nav",
                     label_visibility="collapsed"
                 )
@@ -455,10 +452,7 @@ def main():
                 st.markdown("**ADMIN MENU**")
                 page = st.radio(
                     "nav",
-                    ["🏠 Dashboard", "📋 Service Requests", "🎫 Tickets", 
-                     "🎓 Admission Requests", "📊 Analytics", 
-                     "📄 Documents", "📋 Attendance", "📝 Exams", 
-                     "💰 Fees", "⚙️ Workflow"],
+                    ["🏠 Dashboard", "📋 Attendance", "📝 Exams", "🎫 Tickets", "📧 Complaints"],
                     key="admin_nav",
                     label_visibility="collapsed"
                 )

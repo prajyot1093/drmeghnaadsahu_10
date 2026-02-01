@@ -13,27 +13,28 @@ def show_admin_page(page):
     
     if page == "Dashboard":
         show_admin_dashboard()
-    elif page == "Service Requests":
-        show_service_requests()
     elif page == "Tickets":
         show_tickets()
-    elif page == "Admission Requests":
-        show_admission_requests()
-    elif page == "Analytics":
-        show_analytics()
-    elif "Document" in page:
-        from modules.documents import show_document_manager, init_documents_table
-        st.markdown("## 📄 Document Management (Admin)")
-        init_documents_table()
-        st.info("Admin can manage all student documents here. Select a student ID to view their documents.")
-        user_id = st.number_input("Enter Student User ID", min_value=1, value=1)
-        if st.button("Load Documents"):
-            show_document_manager(user_id)
+    elif page == "Complaints":
+        show_tickets()  # Tickets serve as complaints
     elif "Attendance" in page:
         from modules.attendance import show_attendance_tracker, init_attendance_table
         st.markdown("## 📋 Attendance Management (Admin)")
         init_attendance_table()
-        st.info("Admin can track and manage student attendance.")
+        
+        # Option to upload attendance
+        st.subheader("📤 Upload Attendance Data")
+        with st.form("attendance_upload_form"):
+            uploaded_file = st.file_uploader("Choose CSV file", type=['csv'], label_visibility="collapsed")
+            submitted = st.form_submit_button("Upload Attendance")
+            if submitted and uploaded_file:
+                try:
+                    df = pd.read_csv(uploaded_file)
+                    st.success(f"✅ Uploaded {len(df)} attendance records")
+                except Exception as e:
+                    st.error(f"❌ Error: {str(e)}")
+        
+        st.subheader("📊 Manage Student Attendance")
         user_id = st.number_input("Enter Student User ID", min_value=1, value=1)
         if st.button("Load Attendance"):
             show_attendance_tracker(user_id)
@@ -45,30 +46,6 @@ def show_admin_page(page):
         user_id = st.number_input("Enter Student User ID", min_value=1, value=1)
         if st.button("Load Exam Results"):
             show_exam_results(user_id)
-    elif "Fee" in page:
-        from modules.fees import show_fee_management, init_fees_table
-        st.markdown("## 💰 Fee Management (Admin)")
-        init_fees_table()
-        st.info("Admin can manage student fees and payments.")
-        user_id = st.number_input("Enter Student User ID", min_value=1, value=1)
-        if st.button("Load Fee Records"):
-            show_fee_management(user_id)
-    elif "Workflow" in page:
-        from modules.workflow import show_workflow_automation
-        st.markdown("## ⚙️ Workflow Automation (Admin)")
-        st.info("Track and manage request/ticket workflows.")
-        col1, col2 = st.columns(2)
-        with col1:
-            request_id = st.number_input("Request ID (optional)", min_value=0, value=0)
-        with col2:
-            ticket_id = st.number_input("Ticket ID (optional)", min_value=0, value=0)
-        if st.button("Load Workflow"):
-            if request_id > 0:
-                show_workflow_automation(request_id=request_id)
-            elif ticket_id > 0:
-                show_workflow_automation(ticket_id=ticket_id)
-            else:
-                st.warning("Please enter a Request ID or Ticket ID")
 
 def show_admin_dashboard():
     """Show admin dashboard overview"""
