@@ -21,6 +21,54 @@ def show_admin_page(page):
         show_admission_requests()
     elif page == "Analytics":
         show_analytics()
+    elif "Document" in page:
+        from modules.documents import show_document_manager, init_documents_table
+        st.markdown("## 📄 Document Management (Admin)")
+        init_documents_table()
+        st.info("Admin can manage all student documents here. Select a student ID to view their documents.")
+        user_id = st.number_input("Enter Student User ID", min_value=1, value=1)
+        if st.button("Load Documents"):
+            show_document_manager(user_id)
+    elif "Attendance" in page:
+        from modules.attendance import show_attendance_tracker, init_attendance_table
+        st.markdown("## 📋 Attendance Management (Admin)")
+        init_attendance_table()
+        st.info("Admin can track and manage student attendance.")
+        user_id = st.number_input("Enter Student User ID", min_value=1, value=1)
+        if st.button("Load Attendance"):
+            show_attendance_tracker(user_id)
+    elif "Exam" in page:
+        from modules.exams import show_exam_results, init_exams_table
+        st.markdown("## 📝 Exam Results Management (Admin)")
+        init_exams_table()
+        st.info("Admin can add and manage exam results for students.")
+        user_id = st.number_input("Enter Student User ID", min_value=1, value=1)
+        if st.button("Load Exam Results"):
+            show_exam_results(user_id)
+    elif "Fee" in page:
+        from modules.fees import show_fee_management, init_fees_table
+        st.markdown("## 💰 Fee Management (Admin)")
+        init_fees_table()
+        st.info("Admin can manage student fees and payments.")
+        user_id = st.number_input("Enter Student User ID", min_value=1, value=1)
+        if st.button("Load Fee Records"):
+            show_fee_management(user_id)
+    elif "Workflow" in page:
+        from modules.workflow import show_workflow_automation
+        st.markdown("## ⚙️ Workflow Automation (Admin)")
+        st.info("Track and manage request/ticket workflows.")
+        col1, col2 = st.columns(2)
+        with col1:
+            request_id = st.number_input("Request ID (optional)", min_value=0, value=0)
+        with col2:
+            ticket_id = st.number_input("Ticket ID (optional)", min_value=0, value=0)
+        if st.button("Load Workflow"):
+            if request_id > 0:
+                show_workflow_automation(request_id=request_id)
+            elif ticket_id > 0:
+                show_workflow_automation(ticket_id=ticket_id)
+            else:
+                st.warning("Please enter a Request ID or Ticket ID")
 
 def show_admin_dashboard():
     """Show admin dashboard overview"""
