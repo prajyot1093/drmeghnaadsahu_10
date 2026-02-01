@@ -472,7 +472,7 @@ def main():
         # Route to appropriate page (clean up page name)
         page_clean = page.split(" ", 1)[-1]  # Remove emoji
         if user['role'] == 'student':
-            student_dashboard.show_student_page(page_clean, user['id'])
+            student_dashboard.show_student_page(page_clean, user['user_id'])
         else:
             admin_dashboard.show_admin_page(page_clean)
 
