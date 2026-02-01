@@ -5,9 +5,9 @@ Displays student dashboard with various features
 
 import streamlit as st
 from modules.database import (
-    get_user_profile, update_user_profile, 
-    get_service_requests, create_service_request,
-    get_tickets, create_ticket
+    get_student_profile, update_student_profile, 
+    get_user_requests, submit_service_request,
+    get_user_tickets, submit_ticket
 )
 
 def show_student_page(page, user_id):
@@ -69,7 +69,7 @@ def show_student_page(page, user_id):
 
 def show_dashboard_home(user_id):
     """Show student dashboard home page"""
-    profile = get_user_profile(user_id)
+    profile = get_student_profile(user_id)
     
     if profile:
         # Welcome header
@@ -88,10 +88,10 @@ def show_dashboard_home(user_id):
         with col2:
             st.metric("Course", profile['course'][:15])
         with col3:
-            requests = get_service_requests(user_id=user_id)
+            requests = get_user_requests(user_id)
             st.metric("My Requests", len(requests) if requests else 0)
         with col4:
-            tickets = get_tickets(user_id=user_id)
+            tickets = get_user_tickets(user_id)
             st.metric("My Tickets", len(tickets) if tickets else 0)
         
         st.divider()
@@ -100,7 +100,7 @@ def show_dashboard_home(user_id):
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("### 📋 Recent Requests")
-            requests = get_service_requests(user_id=user_id)
+            requests = get_user_requests(user_id)
             if requests and len(requests) > 0:
                 for req in requests[:3]:
                     st.markdown(f"""
@@ -117,7 +117,7 @@ def show_dashboard_home(user_id):
         
         with col2:
             st.markdown("### 🎫 Recent Tickets")
-            tickets = get_tickets(user_id=user_id)
+            tickets = get_user_tickets(user_id)
             if tickets and len(tickets) > 0:
                 for ticket in tickets[:3]:
                     st.markdown(f"""
@@ -139,7 +139,7 @@ def show_profile(user_id):
     st.markdown("## 👤 My Profile")
     st.markdown("<p style='color: var(--text-secondary); margin-bottom: 2rem;'>View and update your personal information</p>", unsafe_allow_html=True)
     
-    profile = get_user_profile(user_id)
+    profile = get_student_profile(user_id)
     
     if profile:
         # Display current info with modern cards
@@ -188,7 +188,15 @@ def show_profile(user_id):
             submitted = st.form_submit_button("💾 Update Profile", use_container_width=True, type="primary")
             
             if submitted:
-                if update_user_profile(user_id, full_name, email, phone, course, semester, roll_number):
+                profile_data = {
+                    'full_name': full_name,
+                    'email': email,
+                    'phone': phone,
+                    'course': course,
+                    'semester': semester,
+                    'roll_number': roll_number
+                }
+                if update_student_profile(user_id, profile_data):
                     st.success("✅ Profile updated successfully!")
                     st.rerun()
                 else:
@@ -212,7 +220,7 @@ def show_student_requests(user_id):
             submitted = st.form_submit_button("Submit Request")
             
             if submitted and description:
-                if create_service_request(user_id, request_type, description):
+                if submit_service_request(user_id, request_type, description):
                     st.success("✅ Request submitted successfully!")
                     st.rerun()
                 else:
@@ -220,7 +228,7 @@ def show_student_requests(user_id):
     
     # Display existing requests
     st.markdown("### 📋 My Requests")
-    requests = get_service_requests(user_id=user_id)
+    requests = get_user_requests(user_id)
     
     if requests:
         for req in requests:
@@ -274,7 +282,7 @@ def show_student_tickets(user_id):
             submitted = st.form_submit_button("Submit Ticket")
             
             if submitted and subject and description:
-                if create_ticket(user_id, subject, description, category, priority):
+                if submit_ticket(user_id, subject, description, category, priority):
                     st.success("✅ Ticket created successfully!")
                     st.rerun()
                 else:
@@ -282,7 +290,7 @@ def show_student_tickets(user_id):
     
     # Display existing tickets
     st.markdown("### 🎫 My Tickets")
-    tickets = get_tickets(user_id=user_id)
+    tickets = get_user_tickets(user_id)
     
     if tickets:
         for ticket in tickets:
