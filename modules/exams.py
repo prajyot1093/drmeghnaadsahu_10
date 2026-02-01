@@ -95,10 +95,10 @@ def show_exam_results(user_id):
     total_exams, avg_percentage, best_score, worst_score = get_overall_performance(user_id)
     
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Exams", int(total_exams))
-    col2.metric("Average Score", f"{avg_percentage:.1f}%")
-    col3.metric("Best Score", f"{best_score:.1f}%")
-    col4.metric("Worst Score", f"{worst_score:.1f}%")
+    col1.metric("Total Exams", int(total_exams) if total_exams else 0)
+    col2.metric("Average Score", f"{avg_percentage:.1f}%" if avg_percentage is not None else "0.0%")
+    col3.metric("Best Score", f"{best_score:.1f}%" if best_score is not None else "0.0%")
+    col4.metric("Worst Score", f"{worst_score:.1f}%" if worst_score is not None else "0.0%")
     
     st.divider()
     
