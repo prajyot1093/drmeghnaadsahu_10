@@ -151,14 +151,14 @@ def main():
                 st.markdown("### Student Dashboard")
                 page = st.radio(
                     "Navigation",
-                    ["Dashboard", "Profile", "My Requests", "Admission", "Exam Registration", "Submit Ticket"],
+                    ["Dashboard", "Profile", "My Requests", "Admission", "Exam Registration", "Submit Ticket", "📊 Analytics", "📄 Documents", "📋 Attendance", "📝 Exams", "🎯 GPA", "📥 Export", "🔔 Notifications", "🔍 Search", "💰 Fees"],
                     key="student_nav"
                 )
             else:
                 st.markdown("### Admin Dashboard")
                 page = st.radio(
                     "Navigation",
-                    ["Dashboard", "Service Requests", "Tickets", "Admission Requests", "Analytics"],
+                    ["Dashboard", "Service Requests", "Tickets", "Admission Requests", "Analytics", "📄 Documents", "📋 Attendance", "📝 Exams", "💰 Fees", "⚙️ Workflow"],
                     key="admin_nav"
                 )
             
