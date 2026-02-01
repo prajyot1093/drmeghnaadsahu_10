@@ -2,6 +2,8 @@ import sqlite3
 import os
 from datetime import datetime
 from typing import List, Dict, Tuple, Optional
+from contextlib import contextmanager
+import hashlib
 
 DATABASE_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'portal.db')
 
@@ -10,6 +12,19 @@ def get_connection():
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+@contextmanager
+def get_db_connection():
+    """Context manager for database connections - ensures proper cleanup"""
+    conn = get_connection()
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+def hash_password(password: str) -> str:
+    """Hash password using SHA256"""
+    return hashlib.sha256(password.encode()).hexdigest()
 
 def init_database():
     """Initialize database with all required tables"""
@@ -112,56 +127,93 @@ def init_database():
     conn.close()
 
 def add_user(email: str, password: str, full_name: str, role: str) -> bool:
-    """Add new user"""
+    """Add new user with hashed password"""
+    if not email or not password or not full_name or not role:
+        return False
+    
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO users (email, password, full_name, role)
-            VALUES (?, ?, ?, ?)
-        ''', (email, password, full_name, role))
-        conn.commit()
-        conn.close()
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            hashed_password = hash_password(password)
+            cursor.execute('''
+                INSERT INTO users (email, password, full_name, role)
+                VALUES (?, ?, ?, ?)
+            ''', (email, hashed_password, full_name, role))
+            conn.commit()
         return True
     except sqlite3.IntegrityError:
         return False
+    except Exception as e:
+        print(f"Error adding user: {e}")
+        return False
 
 def get_user(email: str, password: str) -> Optional[Dict]:
-    """Get user by email and password"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT * FROM users WHERE email = ? AND password = ?
-    ''', (email, password))
-    user = cursor.fetchone()
-    conn.close()
-    return dict(user) if user else None
+    """Get user by email and hashed password"""
+    if not email or not password:
+        return None
+    
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            hashed_password = hash_password(password)
+            cursor.execute('''
+                SELECT * FROM users WHERE email = ? AND password = ?
+            ''', (email, hashed_password))
+            user = cursor.fetchone()
+        return dict(user) if user else None
+    except Exception as e:
+        print(f"Error getting user: {e}")
+        return None
 
 def update_student_profile(user_id: int, profile_data: Dict) -> bool:
     """Update student profile"""
+    if not user_id or not profile_data:
+        return False
+    
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            UPDATE student_profiles SET
-            roll_number = ?, department = ?, semester = ?, cgpa = ?,
-            phone = ?, address = ?, father_name = ?, mother_name = ?, dob = ?,
-            updated_at = CURRENT_TIMESTAMP
-            WHERE user_id = ?
-        ''', (
-            profile_data.get('roll_number'),
-            profile_data.get('department'),
-            profile_data.get('semester'),
-            profile_data.get('cgpa'),
-            profile_data.get('phone'),
-            profile_data.get('address'),
-            profile_data.get('father_name'),
-            profile_data.get('mother_name'),
-            profile_data.get('dob'),
-            user_id
-        ))
-        conn.commit()
-        conn.close()
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            # Check if profile exists, if not create it
+            cursor.execute('SELECT * FROM student_profiles WHERE user_id = ?', (user_id,))
+            profile = cursor.fetchone()
+            
+            if profile:
+                cursor.execute('''
+                    UPDATE student_profiles SET
+                    roll_number = ?, department = ?, semester = ?, cgpa = ?,
+                    phone = ?, address = ?, father_name = ?, mother_name = ?, dob = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = ?
+                ''', (
+                    profile_data.get('roll_number'),
+                    profile_data.get('department'),
+                    profile_data.get('semester'),
+                    profile_data.get('cgpa'),
+                    profile_data.get('phone'),
+                    profile_data.get('address'),
+                    profile_data.get('father_name'),
+                    profile_data.get('mother_name'),
+                    profile_data.get('dob'),
+                    user_id
+                ))
+            else:
+                cursor.execute('''
+                    INSERT INTO student_profiles 
+                    (user_id, roll_number, department, semester, cgpa, phone, address, father_name, mother_name, dob)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    user_id,
+                    profile_data.get('roll_number'),
+                    profile_data.get('department'),
+                    profile_data.get('semester'),
+                    profile_data.get('cgpa'),
+                    profile_data.get('phone'),
+                    profile_data.get('address'),
+                    profile_data.get('father_name'),
+                    profile_data.get('mother_name'),
+                    profile_data.get('dob')
+                ))
+            conn.commit()
         return True
     except Exception as e:
         print(f"Error updating profile: {e}")
@@ -169,28 +221,42 @@ def update_student_profile(user_id: int, profile_data: Dict) -> bool:
 
 def get_student_profile(user_id: int) -> Optional[Dict]:
     """Get student profile"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT * FROM student_profiles WHERE user_id = ?
-    ''', (user_id,))
-    profile = cursor.fetchone()
-    conn.close()
-    return dict(profile) if profile else None
+    if not user_id:
+        return None
+    
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT * FROM student_profiles WHERE user_id = ?
+            ''', (user_id,))
+            profile = cursor.fetchone()
+        return dict(profile) if profile else None
+    except Exception as e:
+        print(f"Error getting student profile: {e}")
+        return None
 
 def submit_service_request(user_id: int, title: str, description: str, 
                           category: str, priority: str) -> bool:
-    """Submit new service request"""
+    """Submit new service request with validation"""
+    # Validate inputs
+    if not all([user_id, title, description, category, priority]):
+        print("Error: Missing required fields")
+        return False
+    
+    if len(title.strip()) < 3 or len(description.strip()) < 5:
+        print("Error: Title must be at least 3 chars, description at least 5 chars")
+        return False
+    
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO service_requests 
-            (user_id, title, description, category, priority)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (user_id, title, description, category, priority))
-        conn.commit()
-        conn.close()
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO service_requests 
+                (user_id, title, description, category, priority)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (user_id, title.strip(), description.strip(), category, priority))
+            conn.commit()
         return True
     except Exception as e:
         print(f"Error submitting request: {e}")
@@ -198,69 +264,80 @@ def submit_service_request(user_id: int, title: str, description: str,
 
 def get_user_requests(user_id: int) -> List[Dict]:
     """Get all requests for a user"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT * FROM service_requests WHERE user_id = ?
-        ORDER BY created_at DESC
-    ''', (user_id,))
-    requests = cursor.fetchall()
-    conn.close()
-    return [dict(req) for req in requests]
+    if not user_id:
+        return []
+    
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT * FROM service_requests WHERE user_id = ?
+                ORDER BY created_at DESC
+            ''', (user_id,))
+            requests = cursor.fetchall()
+        return [dict(req) for req in requests]
+    except Exception as e:
+        print(f"Error getting user requests: {e}")
+        return []
 
 def get_all_requests(filters: Dict = None) -> List[Dict]:
     """Get all requests with optional filters"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    query = '''
-        SELECT sr.*, u.full_name, u.email FROM service_requests sr
-        JOIN users u ON sr.user_id = u.user_id
-        WHERE 1=1
-    '''
-    params = []
-    
-    if filters:
-        # Handle status filter (supports multiple values)
-        if filters.get('status'):
-            status_list = filters['status'] if isinstance(filters['status'], list) else [filters['status']]
-            placeholders = ','.join('?' * len(status_list))
-            query += f' AND sr.status IN ({placeholders})'
-            params.extend(status_list)
-        
-        # Handle category filter (supports multiple values)
-        if filters.get('category'):
-            category_list = filters['category'] if isinstance(filters['category'], list) else [filters['category']]
-            placeholders = ','.join('?' * len(category_list))
-            query += f' AND sr.category IN ({placeholders})'
-            params.extend(category_list)
-        
-        # Handle priority filter (supports multiple values)
-        if filters.get('priority'):
-            priority_list = filters['priority'] if isinstance(filters['priority'], list) else [filters['priority']]
-            placeholders = ','.join('?' * len(priority_list))
-            query += f' AND sr.priority IN ({placeholders})'
-            params.extend(priority_list)
-    
-    query += ' ORDER BY sr.created_at DESC'
-    
-    cursor.execute(query, params)
-    requests = cursor.fetchall()
-    conn.close()
-    return [dict(req) for req in requests]
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            query = '''
+                SELECT sr.*, u.full_name, u.email FROM service_requests sr
+                JOIN users u ON sr.user_id = u.user_id
+                WHERE 1=1
+            '''
+            params = []
+            
+            if filters:
+                # Handle status filter (supports multiple values)
+                if filters.get('status'):
+                    status_list = filters['status'] if isinstance(filters['status'], list) else [filters['status']]
+                    placeholders = ','.join('?' * len(status_list))
+                    query += f' AND sr.status IN ({placeholders})'
+                    params.extend(status_list)
+                
+                # Handle category filter (supports multiple values)
+                if filters.get('category'):
+                    category_list = filters['category'] if isinstance(filters['category'], list) else [filters['category']]
+                    placeholders = ','.join('?' * len(category_list))
+                    query += f' AND sr.category IN ({placeholders})'
+                    params.extend(category_list)
+                
+                # Handle priority filter (supports multiple values)
+                if filters.get('priority'):
+                    priority_list = filters['priority'] if isinstance(filters['priority'], list) else [filters['priority']]
+                    placeholders = ','.join('?' * len(priority_list))
+                    query += f' AND sr.priority IN ({placeholders})'
+                    params.extend(priority_list)
+            
+            query += ' ORDER BY sr.created_at DESC'
+            
+            cursor.execute(query, params)
+            requests = cursor.fetchall()
+        return [dict(req) for req in requests]
+    except Exception as e:
+        print(f"Error getting all requests: {e}")
+        return []
 
 def update_request_status(request_id: int, status: str) -> bool:
     """Update request status"""
+    if not request_id or not status:
+        return False
+    
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            UPDATE service_requests 
-            SET status = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE request_id = ?
-        ''', (status, request_id))
-        conn.commit()
-        conn.close()
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE service_requests 
+                SET status = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE request_id = ?
+            ''', (status, request_id))
+            conn.commit()
         return True
     except Exception as e:
         print(f"Error updating status: {e}")
@@ -268,31 +345,42 @@ def update_request_status(request_id: int, status: str) -> bool:
 
 def get_request_stats() -> Dict:
     """Get request statistics"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        SELECT status, COUNT(*) as count FROM service_requests
-        GROUP BY status
-    ''')
-    stats = {row['status']: row['count'] for row in cursor.fetchall()}
-    
-    conn.close()
-    return stats
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT status, COUNT(*) as count FROM service_requests
+                GROUP BY status
+            ''')
+            stats = {row['status']: row['count'] for row in cursor.fetchall()}
+        
+        return stats
+    except Exception as e:
+        print(f"Error getting stats: {e}")
+        return {}
 
 def submit_ticket(user_id: int, title: str, description: str, 
                  category: str, priority: str) -> bool:
-    """Submit support ticket"""
+    """Submit support ticket with validation"""
+    # Validate inputs
+    if not all([user_id, title, description, category, priority]):
+        print("Error: Missing required fields")
+        return False
+    
+    if len(title.strip()) < 3 or len(description.strip()) < 5:
+        print("Error: Title must be at least 3 chars, description at least 5 chars")
+        return False
+    
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO tickets 
-            (user_id, title, description, category, priority)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (user_id, title, description, category, priority))
-        conn.commit()
-        conn.close()
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO tickets 
+                (user_id, title, description, category, priority)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (user_id, title.strip(), description.strip(), category, priority))
+            conn.commit()
         return True
     except Exception as e:
         print(f"Error submitting ticket: {e}")
@@ -300,53 +388,62 @@ def submit_ticket(user_id: int, title: str, description: str,
 
 def get_user_tickets(user_id: int) -> List[Dict]:
     """Get all tickets for a user"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT * FROM tickets WHERE user_id = ?
-        ORDER BY created_at DESC
-    ''', (user_id,))
-    tickets = cursor.fetchall()
-    conn.close()
-    return [dict(ticket) for ticket in tickets]
+    if not user_id:
+        return []
+    
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT * FROM tickets WHERE user_id = ?
+                ORDER BY created_at DESC
+            ''', (user_id,))
+            tickets = cursor.fetchall()
+        return [dict(ticket) for ticket in tickets]
+    except Exception as e:
+        print(f"Error getting user tickets: {e}")
+        return []
 
 def get_all_tickets(filters: Dict = None) -> List[Dict]:
     """Get all tickets with optional filters"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    query = '''
-        SELECT t.*, u.full_name, u.email FROM tickets t
-        JOIN users u ON t.user_id = u.user_id
-        WHERE 1=1
-    '''
-    params = []
-    
-    if filters:
-        # Handle status filter (supports multiple values)
-        if filters.get('status'):
-            status_list = filters['status'] if isinstance(filters['status'], list) else [filters['status']]
-            placeholders = ','.join('?' * len(status_list))
-            query += f' AND t.status IN ({placeholders})'
-            params.extend(status_list)
-        
-        # Handle category filter (supports multiple values)
-        if filters.get('category'):
-            category_list = filters['category'] if isinstance(filters['category'], list) else [filters['category']]
-            placeholders = ','.join('?' * len(category_list))
-            query += f' AND t.category IN ({placeholders})'
-            params.extend(category_list)
-        
-        # Handle priority filter (supports multiple values)
-        if filters.get('priority'):
-            priority_list = filters['priority'] if isinstance(filters['priority'], list) else [filters['priority']]
-            placeholders = ','.join('?' * len(priority_list))
-            query += f' AND t.priority IN ({placeholders})'
-            params.extend(priority_list)
-    
-    query += ' ORDER BY t.created_at DESC'
-    
-    cursor.execute(query, params)
-    tickets = cursor.fetchall()
-    conn.close()
-    return [dict(ticket) for ticket in tickets]
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            query = '''
+                SELECT t.*, u.full_name, u.email FROM tickets t
+                JOIN users u ON t.user_id = u.user_id
+                WHERE 1=1
+            '''
+            params = []
+            
+            if filters:
+                # Handle status filter (supports multiple values)
+                if filters.get('status'):
+                    status_list = filters['status'] if isinstance(filters['status'], list) else [filters['status']]
+                    placeholders = ','.join('?' * len(status_list))
+                    query += f' AND t.status IN ({placeholders})'
+                    params.extend(status_list)
+                
+                # Handle category filter (supports multiple values)
+                if filters.get('category'):
+                    category_list = filters['category'] if isinstance(filters['category'], list) else [filters['category']]
+                    placeholders = ','.join('?' * len(category_list))
+                    query += f' AND t.category IN ({placeholders})'
+                    params.extend(category_list)
+                
+                # Handle priority filter (supports multiple values)
+                if filters.get('priority'):
+                    priority_list = filters['priority'] if isinstance(filters['priority'], list) else [filters['priority']]
+                    placeholders = ','.join('?' * len(priority_list))
+                    query += f' AND t.priority IN ({placeholders})'
+                    params.extend(priority_list)
+            
+            query += ' ORDER BY t.created_at DESC'
+            
+            cursor.execute(query, params)
+            tickets = cursor.fetchall()
+        return [dict(ticket) for ticket in tickets]
+    except Exception as e:
+        print(f"Error getting all tickets: {e}")
+        return []
