@@ -76,7 +76,7 @@ def show_dashboard_home(user_id):
         st.markdown(f"""
             <div style="background: linear-gradient(135deg, var(--accent), var(--accent-hover)); 
                         padding: 2rem; border-radius: var(--radius-lg); margin-bottom: 2rem; color: white;">
-                <h1 style="color: white; margin: 0 0 0.5rem 0;">Welcome back, {profile['full_name']}! 👋</h1>
+                <h1 style="color: white; margin: 0 0 0.5rem 0;">Welcome back, Student! 👋</h1>
                 <p style="color: rgba(255,255,255,0.9); margin: 0;">Here's your academic overview</p>
             </div>
         """, unsafe_allow_html=True)
@@ -84,9 +84,9 @@ def show_dashboard_home(user_id):
         # Quick stats
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("Semester", profile['semester'], delta="Current")
+            st.metric("Semester", profile.get('semester', 'N/A'), delta="Current")
         with col2:
-            st.metric("Course", profile['course'][:15])
+            st.metric("Department", profile.get('department', 'N/A')[:15])
         with col3:
             requests = get_user_requests(user_id)
             st.metric("My Requests", len(requests) if requests else 0)
@@ -151,9 +151,8 @@ def show_profile(user_id):
                             border: 1px solid var(--border); margin-bottom: 1rem;">
                     <h4 style="margin: 0 0 1rem 0; color: var(--text-primary);">Personal Information</h4>
             """, unsafe_allow_html=True)
-            st.markdown(f"**Full Name:** {profile['full_name']}")
-            st.markdown(f"**Email:** {profile['email']}")
-            st.markdown(f"**Phone:** {profile['phone']}")
+            st.markdown(f"**Roll Number:** {profile.get('roll_number', 'N/A')}")
+            st.markdown(f"**Phone:** {profile.get('phone', 'N/A')}")
             st.markdown("</div>", unsafe_allow_html=True)
         
         with col2:
@@ -162,9 +161,9 @@ def show_profile(user_id):
                             border: 1px solid var(--border); margin-bottom: 1rem;">
                     <h4 style="margin: 0 0 1rem 0; color: var(--text-primary);">Academic Details</h4>
             """, unsafe_allow_html=True)
-            st.markdown(f"**Course:** {profile['course']}")
-            st.markdown(f"**Semester:** {profile['semester']}")
-            st.markdown(f"**Roll Number:** {profile['roll_number']}")
+            st.markdown(f"**Department:** {profile.get('department', 'N/A')}")
+            st.markdown(f"**Semester:** {profile.get('semester', 'N/A')}")
+            st.markdown(f"**CGPA:** {profile.get('cgpa', 0.0):.2f}")
             st.markdown("</div>", unsafe_allow_html=True)
         
         st.divider()
@@ -176,25 +175,25 @@ def show_profile(user_id):
             col1, col2 = st.columns(2)
             
             with col1:
-                full_name = st.text_input("Full Name", value=profile['full_name'])
-                email = st.text_input("Email Address", value=profile['email'])
-                phone = st.text_input("Phone Number", value=profile['phone'])
+                roll_number = st.text_input("Roll Number", value=profile.get('roll_number', ''))
+                phone = st.text_input("Phone Number", value=profile.get('phone', ''))
+                department = st.text_input("Department", value=profile.get('department', ''))
             
             with col2:
-                course = st.text_input("Course", value=profile['course'])
-                semester = st.number_input("Semester", min_value=1, max_value=8, value=profile['semester'])
-                roll_number = st.text_input("Roll Number", value=profile['roll_number'])
+                semester = st.number_input("Semester", min_value=1, max_value=8, value=int(profile.get('semester', 1)))
+                cgpa = st.number_input("CGPA", min_value=0.0, max_value=10.0, value=float(profile.get('cgpa', 0.0)), step=0.01)
+                address = st.text_input("Address", value=profile.get('address', ''))
             
             submitted = st.form_submit_button("💾 Update Profile", use_container_width=True, type="primary")
             
             if submitted:
                 profile_data = {
-                    'full_name': full_name,
-                    'email': email,
+                    'roll_number': roll_number,
                     'phone': phone,
-                    'course': course,
+                    'department': department,
                     'semester': semester,
-                    'roll_number': roll_number
+                    'cgpa': cgpa,
+                    'address': address
                 }
                 if update_student_profile(user_id, profile_data):
                     st.success("✅ Profile updated successfully!")
