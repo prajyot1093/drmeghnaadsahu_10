@@ -5,7 +5,11 @@ from typing import List, Dict, Tuple, Optional
 from contextlib import contextmanager
 import hashlib
 
-DATABASE_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'portal.db')
+# Ensure data directory exists
+DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
+os.makedirs(DATA_DIR, exist_ok=True)
+
+DATABASE_PATH = os.path.join(DATA_DIR, 'portal.db')
 
 def get_connection():
     """Get database connection"""
