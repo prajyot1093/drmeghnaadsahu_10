@@ -106,9 +106,9 @@ def show_dashboard_home(user_id):
                     st.markdown(f"""
                         <div style="background: var(--surface); padding: 1rem; border-radius: var(--radius); 
                                     border-left: 4px solid var(--accent); margin-bottom: 0.75rem;">
-                            <div style="font-weight: 600; color: var(--text-primary);">{req['request_type']}</div>
+                            <div style="font-weight: 600; color: var(--text-primary);">{req.get('title', 'Request')}</div>
                             <div style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                                {req['status']} • {req['created_at'][:10]}
+                                {req.get('status', 'Pending')} • {req.get('created_at', '')[:10]}
                             </div>
                         </div>
                     """, unsafe_allow_html=True)
@@ -123,9 +123,9 @@ def show_dashboard_home(user_id):
                     st.markdown(f"""
                         <div style="background: var(--surface); padding: 1rem; border-radius: var(--radius); 
                                     border-left: 4px solid var(--warning); margin-bottom: 0.75rem;">
-                            <div style="font-weight: 600; color: var(--text-primary);">{ticket['subject']}</div>
+                            <div style="font-weight: 600; color: var(--text-primary);">{ticket.get('title', 'Ticket')}</div>
                             <div style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                                {ticket['status']} • Priority: {ticket['priority']}
+                                {ticket.get('status', 'Open')} • Priority: {ticket.get('priority', 'Medium')}
                             </div>
                         </div>
                     """, unsafe_allow_html=True)
@@ -216,10 +216,11 @@ def show_student_requests(user_id):
                  "ID Card", "Library Card", "Other"]
             )
             description = st.text_area("Description", height=100)
+            priority = st.selectbox("Priority", ["Low", "Medium", "High"], index=1)
             submitted = st.form_submit_button("Submit Request")
             
             if submitted and description:
-                if submit_service_request(user_id, request_type, description):
+                if submit_service_request(user_id, request_type, description, request_type, priority):
                     st.success("✅ Request submitted successfully!")
                     st.rerun()
                 else:
@@ -249,15 +250,13 @@ def show_student_requests(user_id):
             with st.container():
                 col1, col2, col3 = st.columns([3, 2, 1])
                 with col1:
-                    st.markdown(f"**{req['request_type']}**")
-                    st.caption(req['description'][:100])
+                    st.markdown(f"**{req.get('title', 'Request')}**")
+                    st.caption(req.get('description', '')[:100])
                 with col2:
-                    st.caption(f"Created: {req['created_at'][:10]}")
+                    st.caption(f"Created: {req.get('created_at', '')[:10]}")
+                    st.caption(f"Category: {req.get('category', 'N/A')}")
                 with col3:
-                    st.markdown(f"{status_color} {req['status']}")
-                
-                if req['admin_remarks']:
-                    st.info(f"💬 Admin: {req['admin_remarks']}")
+                    st.markdown(f"{status_color} {req.get('status', 'Pending')}")
             
             st.markdown('</div>', unsafe_allow_html=True)
     else:
@@ -317,18 +316,16 @@ def show_student_tickets(user_id):
             with st.container():
                 col1, col2, col3 = st.columns([3, 2, 1])
                 with col1:
-                    st.markdown(f"**{ticket['subject']}**")
-                    st.caption(f"🏷️ {ticket['category']}")
+                    st.markdown(f"**{ticket.get('title', 'Ticket')}**")
+                    st.caption(f"🏷️ {ticket.get('category', 'N/A')}")
                 with col2:
-                    st.caption(f"Created: {ticket['created_at'][:10]}")
-                    st.caption(f"{priority_icon} {ticket['priority']} Priority")
+                    st.caption(f"Created: {ticket.get('created_at', '')[:10]}")
+                    st.caption(f"{priority_icon} {ticket.get('priority', 'Medium')} Priority")
                 with col3:
-                    st.markdown(f"{status_color} {ticket['status']}")
+                    st.markdown(f"{status_color} {ticket.get('status', 'Open')}")
                 
                 with st.expander("View Details"):
-                    st.markdown(f"**Description:** {ticket['description']}")
-                    if ticket['admin_response']:
-                        st.info(f"💬 Response: {ticket['admin_response']}")
+                    st.markdown(f"**Description:** {ticket.get('description', 'No description')}")
             
             st.markdown('</div>', unsafe_allow_html=True)
     else:

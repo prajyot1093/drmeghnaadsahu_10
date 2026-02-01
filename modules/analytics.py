@@ -117,3 +117,7 @@ def show_advanced_analytics():
         metric_col1.metric("Total Requests", int(total_requests))
         metric_col2.metric("Total Tickets", int(total_tickets))
         metric_col3.metric("Avg Resolution Rate", f"{avg_resolution:.1f}%")
+
+def show_performance_dashboard(user_id):
+    """Show student performance analytics dashboard"""
+    show_advanced_analytics()
