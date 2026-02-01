@@ -127,6 +127,21 @@ def init_database():
         )
     ''')
     
+    # Student Marks table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS student_marks (
+            marks_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            subject TEXT NOT NULL,
+            marks REAL NOT NULL,
+            total_marks REAL DEFAULT 100,
+            percentage REAL,
+            grade TEXT,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(user_id)
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -473,3 +488,107 @@ def get_all_tickets(filters: Dict = None) -> List[Dict]:
     except Exception as e:
         print(f"Error getting all tickets: {e}")
         return []
+def get_all_students() -> List[Dict]:
+    """Get all students with their profiles"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT u.user_id, u.full_name, u.email, sp.roll_number, 
+                       sp.department, sp.semester, sp.cgpa
+                FROM users u
+                LEFT JOIN student_profiles sp ON u.user_id = sp.user_id
+                WHERE u.role = 'student'
+                ORDER BY u.full_name
+            ''')
+            students = cursor.fetchall()
+        return [dict(student) for student in students]
+    except Exception as e:
+        print(f"Error getting students: {e}")
+        return []
+
+def add_student_marks(user_id: int, subject: str, marks: float, 
+                     total_marks: float = 100) -> bool:
+    """Add or update student marks"""
+    if not all([user_id, subject, marks is not None]):
+        return False
+    
+    try:
+        percentage = (marks / total_marks * 100) if total_marks > 0 else 0
+        
+        # Calculate grade
+        if percentage >= 90:
+            grade = 'A'
+        elif percentage >= 80:
+            grade = 'B'
+        elif percentage >= 70:
+            grade = 'C'
+        elif percentage >= 60:
+            grade = 'D'
+        else:
+            grade = 'F'
+        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Check if marks already exist
+            cursor.execute('''
+                SELECT marks_id FROM student_marks 
+                WHERE user_id = ? AND subject = ?
+            ''', (user_id, subject))
+            
+            existing = cursor.fetchone()
+            
+            if existing:
+                cursor.execute('''
+                    UPDATE student_marks 
+                    SET marks = ?, total_marks = ?, percentage = ?, grade = ?,
+                        uploaded_at = CURRENT_TIMESTAMP
+                    WHERE user_id = ? AND subject = ?
+                ''', (marks, total_marks, percentage, grade, user_id, subject))
+            else:
+                cursor.execute('''
+                    INSERT INTO student_marks 
+                    (user_id, subject, marks, total_marks, percentage, grade)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (user_id, subject, marks, total_marks, percentage, grade))
+            
+            conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error adding marks: {e}")
+        return False
+
+def get_student_marks(user_id: int) -> List[Dict]:
+    """Get all marks for a student"""
+    if not user_id:
+        return []
+    
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT * FROM student_marks 
+                WHERE user_id = ?
+                ORDER BY uploaded_at DESC
+            ''', (user_id,))
+            marks = cursor.fetchall()
+        return [dict(mark) for mark in marks]
+    except Exception as e:
+        print(f"Error getting marks: {e}")
+        return []
+
+def delete_student_marks(marks_id: int) -> bool:
+    """Delete student marks"""
+    if not marks_id:
+        return False
+    
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM student_marks WHERE marks_id = ?', (marks_id,))
+            conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error deleting marks: {e}")
+        return False

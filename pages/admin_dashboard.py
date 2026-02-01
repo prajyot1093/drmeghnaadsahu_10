@@ -3,7 +3,8 @@ import pandas as pd
 from datetime import datetime, timedelta
 from modules.database import (
     get_all_requests, get_all_tickets, 
-    update_request_status, get_request_stats
+    update_request_status, get_request_stats,
+    get_all_students, add_student_marks, get_student_marks, delete_student_marks
 )
 import plotly.graph_objects as go
 import plotly.express as px
@@ -13,6 +14,8 @@ def show_admin_page(page):
     
     if page == "Dashboard":
         show_admin_dashboard()
+    elif page == "Student Marks":
+        show_student_marks_management()
     elif page == "Tickets":
         show_tickets()
     elif page == "Complaints":
@@ -320,6 +323,171 @@ def show_admission_requests():
     
     with col2:
         st.metric("Approved", "12", delta="1")
+
+def show_student_marks_management():
+    """Show student marks management interface"""
+    st.markdown("## 📝 Student Marks Management")
+    
+    try:
+        # Get all students
+        students = get_all_students() or []
+        
+        if not students:
+            st.warning("No students registered yet")
+            return
+        
+        # Create student dropdown
+        student_names = {f"{s['full_name']} (ID: {s['user_id']})": s['user_id'] for s in students}
+        selected_student_label = st.selectbox(
+            "Select Student",
+            options=list(student_names.keys()),
+            help="Choose a student to manage marks"
+        )
+        selected_student_id = student_names[selected_student_label]
+        
+        st.divider()
+        
+        # Get student details
+        selected_student = next((s for s in students if s['user_id'] == selected_student_id), None)
+        
+        if selected_student:
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Student ID", selected_student_id)
+            with col2:
+                st.metric("Roll Number", selected_student.get('roll_number', 'N/A'))
+            with col3:
+                st.metric("Department", selected_student.get('department', 'N/A'))
+            with col4:
+                st.metric("Semester", selected_student.get('semester', 'N/A'))
+            
+            st.divider()
+            
+            # Add marks section
+            st.subheader("➕ Add/Update Marks")
+            
+            with st.form("add_marks_form"):
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    subject = st.text_input(
+                        "Subject Name",
+                        placeholder="e.g., Mathematics, Physics",
+                        help="Enter the subject for which marks are being added"
+                    )
+                
+                with col2:
+                    marks = st.number_input(
+                        "Marks Obtained",
+                        min_value=0.0,
+                        max_value=100.0,
+                        step=0.5,
+                        help="Enter marks obtained by student"
+                    )
+                
+                with col3:
+                    total_marks = st.number_input(
+                        "Total Marks",
+                        min_value=1.0,
+                        value=100.0,
+                        step=0.5,
+                        help="Enter total marks for this subject"
+                    )
+                
+                submitted = st.form_submit_button("📤 Upload Marks", use_container_width=True)
+                
+                if submitted:
+                    if not subject.strip():
+                        st.error("❌ Subject name cannot be empty")
+                    else:
+                        if add_student_marks(selected_student_id, subject.strip(), marks, total_marks):
+                            st.success(f"✅ Marks for {subject} have been uploaded successfully!")
+                            st.rerun()
+                        else:
+                            st.error("❌ Failed to upload marks. Please try again.")
+            
+            st.divider()
+            
+            # Display student marks
+            st.subheader("📊 Student Marks Record")
+            
+            student_marks = get_student_marks(selected_student_id) or []
+            
+            if student_marks:
+                # Create dataframe for display
+                marks_df = pd.DataFrame([{
+                    'Subject': m.get('subject', 'N/A'),
+                    'Marks': m.get('marks', 0),
+                    'Total': m.get('total_marks', 100),
+                    'Percentage': f"{m.get('percentage', 0):.2f}%",
+                    'Grade': m.get('grade', 'N/A'),
+                    'Date': m.get('uploaded_at', 'N/A')[:10] if m.get('uploaded_at') else 'N/A'
+                } for m in student_marks])
+                
+                st.dataframe(marks_df, use_container_width=True, hide_index=True)
+                
+                # Summary stats
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    avg_percentage = sum(m.get('percentage', 0) for m in student_marks) / len(student_marks)
+                    st.metric("Average Percentage", f"{avg_percentage:.2f}%")
+                
+                with col2:
+                    st.metric("Total Subjects", len(student_marks))
+                
+                with col3:
+                    a_count = sum(1 for m in student_marks if m.get('grade') == 'A')
+                    st.metric("Grade A Count", a_count)
+                
+                with col4:
+                    f_count = sum(1 for m in student_marks if m.get('grade') == 'F')
+                    st.metric("Grade F Count", f_count)
+                
+                st.divider()
+                
+                # Delete marks
+                st.subheader("🗑️ Delete Marks Record")
+                
+                mark_to_delete = st.selectbox(
+                    "Select marks to delete",
+                    options=[f"{m['subject']} - {m['marks']}/{m['total_marks']}" for m in student_marks],
+                    help="Select a mark record to delete"
+                )
+                
+                if st.button("Delete Marks", use_container_width=True):
+                    # Find the marks_id to delete
+                    subject_to_delete = mark_to_delete.split(" - ")[0]
+                    mark_id = next((m['marks_id'] for m in student_marks if m['subject'] == subject_to_delete), None)
+                    
+                    if mark_id and delete_student_marks(mark_id):
+                        st.success("✅ Marks deleted successfully!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Failed to delete marks")
+            else:
+                st.info("No marks recorded for this student yet")
+        
+        # Show all students overview
+        st.divider()
+        st.subheader("📋 All Registered Students")
+        
+        students_df = pd.DataFrame([{
+            'ID': s['user_id'],
+            'Name': s['full_name'],
+            'Email': s['email'],
+            'Roll Number': s.get('roll_number', 'N/A'),
+            'Department': s.get('department', 'N/A'),
+            'Semester': s.get('semester', 'N/A'),
+            'CGPA': f"{s.get('cgpa', 0):.2f}"
+        } for s in students])
+        
+        st.dataframe(students_df, use_container_width=True, hide_index=True)
+        
+    except Exception as e:
+        st.error(f"❌ Error in marks management: {str(e)}")
+        print(f"Marks management error: {e}")
 
 def show_analytics():
     """Show analytics and reports"""

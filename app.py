@@ -452,7 +452,7 @@ def main():
                 st.markdown("**ADMIN MENU**")
                 page = st.radio(
                     "nav",
-                    ["🏠 Dashboard", "📋 Attendance", "📝 Exams", "🎫 Tickets", "📧 Complaints"],
+                    ["🏠 Dashboard", "� Student Marks", "�📋 Attendance", "📝 Exams", "🎫 Tickets", "📧 Complaints"],
                     key="admin_nav",
                     label_visibility="collapsed"
                 )
